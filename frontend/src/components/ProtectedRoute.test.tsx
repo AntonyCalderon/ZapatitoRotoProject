@@ -1,50 +1,31 @@
-import '@testing-library/jest-dom/vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import ProtectedRoute from './ProtectedRoute'
 import { useAuthStore } from '../store/authStore'
 
-function renderAt(path: string) {
-  return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/login" element={<p>Pantalla de login</p>} />
-        <Route path="/inicio" element={<p>Pantalla de inicio</p>} />
-        <Route
-          path="/costo-base"
-          element={
-            <ProtectedRoute allowedRoles={['admin']}>
-              <p>Pantalla de costo base</p>
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
-    </MemoryRouter>,
-  )
+const usuario = { id_usuario: 1, nombre: 'Ana', correo: 'a@b.co', roles: ['Ventas'], debe_cambiar_password: true }
+afterEach(() => { cleanup(); vi.restoreAllMocks(); useAuthStore.setState({ user: null }) })
+
+function abrir(ruta: string, pendiente: boolean) {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ usuario: { ...usuario, debe_cambiar_password: pendiente } }) }))
+  render(<MemoryRouter initialEntries={[ruta]}><Routes><Route element={<ProtectedRoute />}>
+    <Route path="/inicio" element={<p>Inicio autorizado</p>} />
+    <Route path="/cambiar-password" element={<p>Cambio requerido</p>} />
+  </Route></Routes></MemoryRouter>)
 }
-
-describe('ProtectedRoute con roles', () => {
-  beforeEach(() => {
-    localStorage.clear()
-    useAuthStore.setState({ user: null })
+describe('sesión protegida', () => {
+  it('recarga la sesión y dirige al cambio pendiente', async () => {
+    abrir('/inicio', true)
+    expect(await screen.findByText('Cambio requerido')).toBeInTheDocument()
+    expect(screen.queryByText('Inicio autorizado')).not.toBeInTheDocument()
   })
-  afterEach(cleanup)
-
-  it('el admin entra a costo base', () => {
-    useAuthStore.setState({ user: { name: 'Admin', email: 'admin@zapatito.com', role: 'admin' } })
-    renderAt('/costo-base')
-    expect(screen.getByText('Pantalla de costo base')).toBeInTheDocument()
+  it('mantiene la pantalla de cambio pendiente sin bucles', async () => {
+    abrir('/cambiar-password', true)
+    expect(await screen.findByText('Cambio requerido')).toBeInTheDocument()
   })
-
-  it('el vendedor vuelve a inicio', () => {
-    useAuthStore.setState({ user: { name: 'Ana', email: 'ana@example.com', role: 'vendedor' } })
-    renderAt('/costo-base')
-    expect(screen.getByText('Pantalla de inicio')).toBeInTheDocument()
-  })
-
-  it('sin sesión va a login', () => {
-    renderAt('/costo-base')
-    expect(screen.getByText('Pantalla de login')).toBeInTheDocument()
+  it('redirige al inicio cuando el cambio ya se completó', async () => {
+    abrir('/cambiar-password', false)
+    expect(await screen.findByText('Inicio autorizado')).toBeInTheDocument()
   })
 })
