@@ -1,11 +1,21 @@
+
 import { create } from 'zustand'
-import { createJSONStorage, persist } from 'zustand/middleware'
-import type { User } from '../services/authService'
+import type { UsuarioAutenticado } from '../services/authApi'
 
-interface AuthState { user: Omit<User, 'password'> | null; setUser: (user: User) => void; logout: () => void }
+// Guardamos los datos públicos del usuario autenticado.
+// La sesión real se mantiene en el backend.
+interface AuthState {
+  user: UsuarioAutenticado | null
+  setUser: (user: UsuarioAutenticado) => void
+  logout: () => void
+}
 
-export const useAuthStore = create<AuthState>()(persist((set) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  setUser: (user) => set({ user: { name: user.name, email: user.email } }),
-  logout: () => set({ user: null }),
-}), { name: 'registro-login-session', storage: createJSONStorage(() => localStorage) }))
+
+  // Actualizamos el usuario después de iniciar sesión.
+  setUser: (user) => set({ user }),
+
+  // Limpiamos los datos del usuario en React.
+  logout: () => set({ user: null })
+}))

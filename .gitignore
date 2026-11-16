@@ -1,0 +1,38 @@
+# Dependencias de Node.js
+node_modules/
+**/node_modules/
+
+# Variables de entorno y credenciales
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Archivos generados
+dist/
+build/
+coverage/
+*.log
+
+# Archivos temporales
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
+
+# Configuración local del editor
+.vscode/
+.idea/
+
+# Archivos de PostgreSQL
+*.dump
+*.backup
+
+# Archivos locales de Postman
+.postman/
+postman/
+
+# Referencias visuales locales
+referencias/

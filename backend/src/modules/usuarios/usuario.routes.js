@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import { requerirAutenticacion, autorizarRoles } from '../../middlewares/autorizarRoles.js';
+import { listarUsuariosController, listarRolesController, crearUsuarioController, cambiarEstadoController } from './usuario.controller.js';
+const router = Router();
+router.use(requerirAutenticacion, autorizarRoles('Administrador'));
+router.get('/', listarUsuariosController);
+router.get('/roles', listarRolesController);
+router.post('/', crearUsuarioController);
+router.patch('/:id/estado', cambiarEstadoController);
+export default router;
