@@ -1,3 +1,5 @@
+import CampoCostoFaltante from './CampoCostoFaltante'
+
 interface LineaCostoAdquisicion {
   idSku: number
   cantidad: number
@@ -14,9 +16,10 @@ export interface DatosResumenCostoAdquisicion {
 
 interface ResumenCostoAdquisicionProps {
   resumen: DatosResumenCostoAdquisicion
+  actualizarResumen?: () => Promise<void>
 }
 
-export default function ResumenCostoAdquisicion({ resumen }: ResumenCostoAdquisicionProps) {
+export default function ResumenCostoAdquisicion({ resumen, actualizarResumen }: ResumenCostoAdquisicionProps) {
   const { lineas, subtotalConocido, igv, total } = resumen
 
   return (
@@ -46,7 +49,11 @@ export default function ResumenCostoAdquisicion({ resumen }: ResumenCostoAdquisi
                     <th scope="row" className="px-5 py-3 font-medium">{linea.idSku}</th>
                     <td className="px-5 py-3 text-right">{linea.cantidad}</td>
                     <td className="px-5 py-3 text-right">
-                      {linea.costoUnitario === null ? 'Falta costo' : `S/ ${linea.costoUnitario}`}
+                      {linea.costoUnitario !== null ? `S/ ${linea.costoUnitario}` : (
+                        actualizarResumen ? (
+                          <CampoCostoFaltante idSku={linea.idSku} actualizarResumen={actualizarResumen} />
+                        ) : 'Falta costo'
+                      )}
                     </td>
                     <td className="px-5 py-3 text-right">
                       {linea.importe === null ? '—' : `S/ ${linea.importe}`}
