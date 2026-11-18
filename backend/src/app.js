@@ -19,6 +19,8 @@ import modeloRoutes from './modules/modelos/modelo.routes.js';
 import tallaRoutes from './modules/tallas/talla.routes.js';
 import colorRoutes from './modules/colores/color.routes.js';
 import productoSkuRoutes from './modules/productos-sku/productoSku.routes.js';
+import costoAdquisicionRoutes from './modules/compras/costoAdquisicion.routes.js';
+
 
 const app = express();
 
@@ -36,6 +38,7 @@ app.use('/api/usuarios', usuarioRoutes);
 // Registra las rutas del módulo de costos base.
 app.use('/api/costos-base', costoBaseRoutes);
 
+app.use('/api/compras', costoAdquisicionRoutes);
 
 // API de administración del catálogo de modelos.
 app.use('/api/modelos', modeloRoutes);
