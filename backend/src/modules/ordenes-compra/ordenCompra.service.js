@@ -2,7 +2,8 @@ import {
   crearBorrador,
   listarBorradores,
   buscarOrdenCompraPorId,
-  guardarBorrador
+  guardarBorrador,
+  cancelarBorrador as cancelarBorradorEnBD
 } from './ordenCompra.repository.js';
 
 function errorHttp(mensaje, status) {
@@ -67,4 +68,17 @@ export async function actualizarBorrador(idOrden, idProveedor, observacion) {
     }
     throw error;
   }
+}
+
+export async function cancelarBorrador(idOrden, idUsuario) {
+  const id = validarId(idOrden, 'orden de compra');
+  const usuario = validarId(idUsuario, 'usuario');
+  const resultado = await cancelarBorradorEnBD(id, usuario);
+  if (resultado.problema?.tipo === 'orden_inexistente') {
+    throw errorHttp('La orden de compra no existe.', 404);
+  }
+  if (resultado.problema?.tipo === 'no_es_borrador') {
+    throw errorHttp('Solo se puede cancelar una solicitud en estado BORRADOR. Actualiza la bandeja.', 409);
+  }
+  return resultado.orden;
 }

@@ -33,3 +33,5 @@
 .ops-model-menu{position:fixed;z-index:1000;overflow-y:auto;overscroll-behavior:contain;padding:5px;background:#fff;border:1px solid #dedff0;border-radius:8px;box-shadow:0 8px 22px #19234726;font-family:Inter,'Segoe UI',sans-serif;font-size:14px;color:#40516a;box-sizing:border-box}
 .ops-model-menu [role=option]{padding:10px 11px;border-radius:5px;cursor:pointer;overflow-wrap:anywhere}
 .ops-model-menu [role=option].is-active{background:#f0eeff;color:#5145cf}.ops-model-menu p{margin:0;padding:10px;color:#8390a6}
+
+.ops-draft-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;white-space:nowrap}.ops-btn-cancel{color:#ae4653;border-color:#f0dce0}.ops-btn-cancel:hover{background:#fff5f6}.ops-draft-actions a[aria-disabled=true]{opacity:.5;cursor:not-allowed}
