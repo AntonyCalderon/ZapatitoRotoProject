@@ -23,7 +23,7 @@ interface Opciones {
   costoAlGuardar?: number
 }
 
-function simularApi({ estado = 'Borrador', lineasGuardadas = [], fallaAlGuardar = false, costoAlGuardar }: Opciones = {}) {
+function simularApi({ estado = 'BORRADOR', lineasGuardadas = [], fallaAlGuardar = false, costoAlGuardar }: Opciones = {}) {
   const costos = new Map([[1, 180]])
 
   return vi.fn(async (entrada: RequestInfo | URL, opciones?: RequestInit) => {
@@ -40,15 +40,17 @@ function simularApi({ estado = 'Borrador', lineasGuardadas = [], fallaAlGuardar 
         { id_sku: 3, id_talla: 3, numero_talla: '41.0' }
       ] })
     }
-    if (ruta === '/api/lineas-compra/ordenes/7/lineas' && !opciones?.method) {
+    if (ruta === '/api/ordenes-compra/7/detalles' && !opciones?.method) {
       const total = lineasGuardadas.reduce((s, l) => s + l.cantidad, 0)
       return respuesta({ estado, lineas: lineasGuardadas, total_pares: total, pares_por_modelo: [] })
     }
-    if (ruta === '/api/lineas-compra/ordenes/7/lineas' && opciones?.method === 'PUT') {
+    if (ruta === '/api/ordenes-compra/7/detalles' && opciones?.method === 'POST') {
       if (fallaAlGuardar) return respuesta({ mensaje: 'La orden ya no es un borrador.' }, 409)
       if (costoAlGuardar !== undefined) costos.set(1, costoAlGuardar)
-      const { lineas } = JSON.parse(String(opciones.body)) as { lineas: LineaPedida[] }
-      const guardadas = lineas.map((l) => detalle(l.id_sku, l.id_sku === 1 ? '40.0' : '41.0', l.cantidad))
+      const { lineas } = JSON.parse(String(opciones.body)) as { lineas: { id_sku: number; cantidad: number }[] }
+      const acumuladas = new Map(lineasGuardadas.map((l) => [l.id_sku, l]))
+      for (const l of lineas) acumuladas.set(l.id_sku, detalle(l.id_sku, l.id_sku === 1 ? '40.0' : '41.0', (acumuladas.get(l.id_sku)?.cantidad ?? 0) + l.cantidad))
+      const guardadas = [...acumuladas.values()]
       return respuesta({ mensaje: 'Líneas guardadas correctamente.', lineas: guardadas, total_pares: guardadas.reduce((s, l) => s + l.cantidad, 0), pares_por_modelo: [] })
     }
     if (ruta === '/api/compras/ordenes/7/resumen-costos' && opciones?.method === 'POST') {
@@ -62,8 +64,7 @@ function simularApi({ estado = 'Borrador', lineasGuardadas = [], fallaAlGuardar 
       return respuesta({
         lineas: calculadas,
         subtotalConocido: subtotal.toFixed(2),
-        igv: completo ? (subtotal * 0.18).toFixed(2) : null,
-        total: completo ? (subtotal * 1.18).toFixed(2) : null,
+        total: completo ? subtotal.toFixed(2) : null,
       })
     }
     if (ruta === '/api/compras/costos-faltantes/3' && opciones?.method === 'POST') {
@@ -166,7 +167,7 @@ describe('Selección de modelos y tallas dentro de un borrador', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Guardar líneas' }))
 
     expect(await screen.findByText(/Líneas guardadas correctamente.*16 pares en 2 líneas/)).toBeInTheDocument()
-    expect(fetchMock).toHaveBeenCalledWith('/api/lineas-compra/ordenes/7/lineas', expect.objectContaining({ method: 'PUT', credentials: 'include' }))
+    expect(fetchMock).toHaveBeenCalledWith('/api/ordenes-compra/7/detalles', expect.objectContaining({ method: 'POST', credentials: 'include' }))
     await waitFor(() => expect(screen.queryByText('Tienes cambios sin guardar.')).not.toBeInTheDocument())
   })
 
@@ -177,10 +178,10 @@ describe('Selección de modelos y tallas dentro de un borrador', () => {
 
     fireEvent.change(screen.getByLabelText('Talla 40'), { target: { value: '12' } })
     fireEvent.click(screen.getByRole('button', { name: 'Agregar a la solicitud' }))
-    expect(await screen.findByText('S/ 2548.80')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('Total de adquisición').nextElementSibling).toHaveTextContent('S/ 2160.00'))
 
     fireEvent.click(screen.getByRole('button', { name: 'Guardar líneas' }))
-    expect(await screen.findByText('S/ 2832.00')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('Total de adquisición').nextElementSibling).toHaveTextContent('S/ 2400.00'))
   })
 
   it('recalcula el borrador al agregar pares y registrar el costo faltante', async () => {
@@ -189,7 +190,7 @@ describe('Selección de modelos y tallas dentro de un borrador', () => {
     mostrarPagina()
 
     const resumen = await screen.findByRole('region', { name: 'Resumen de costos de adquisición' })
-    expect(within(resumen).getByText('S/ 2548.80')).toBeInTheDocument()
+    expect(within(resumen).getByText('Total de adquisición').nextElementSibling).toHaveTextContent('S/ 2160.00')
 
     await elegirModeloYColor()
     fireEvent.change(screen.getByLabelText('Talla 41'), { target: { value: '1' } })
@@ -200,7 +201,7 @@ describe('Selección de modelos y tallas dentro de un borrador', () => {
     fireEvent.change(costo, { target: { value: '190,00' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar costo' }))
 
-    expect(await screen.findByText('S/ 2773.00')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('Total de adquisición').nextElementSibling).toHaveTextContent('S/ 2350.00'))
     expect(screen.queryByText('Pendiente')).not.toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/compras/costos-faltantes/3', expect.objectContaining({
       method: 'POST',
@@ -221,22 +222,19 @@ describe('Selección de modelos y tallas dentro de un borrador', () => {
   })
 
   it('no permite editar una orden que no está en Borrador', async () => {
-    vi.stubGlobal('fetch', simularApi({ estado: 'Emitida', lineasGuardadas: [detalle(1, '40.0', 12)] }))
+    vi.stubGlobal('fetch', simularApi({ estado: 'EMITIDA', lineasGuardadas: [detalle(1, '40.0', 12)] }))
     mostrarPagina()
 
-    expect(await screen.findByText(/estado Emitida/)).toBeInTheDocument()
+    expect(await screen.findByText(/estado EMITIDA/)).toBeInTheDocument()
     expect(screen.queryByLabelText('Modelo')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Guardar líneas' })).not.toBeInTheDocument()
   })
 
-  it('quita una línea y la marca como cambio sin guardar', async () => {
+  it('reserva quitar líneas persistidas para HU16', async () => {
     vi.stubGlobal('fetch', simularApi({ lineasGuardadas: [detalle(1, '40.0', 12)] }))
     mostrarPagina()
-
-    fireEvent.click(await screen.findByRole('button', { name: /Quitar talla 40/ }))
-
-    expect(await screen.findByText('Aún no agregaste líneas.')).toBeInTheDocument()
-    expect(screen.getByText('Tienes cambios sin guardar.')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /Quitar talla 40/ })).toBeDisabled()
+    expect(screen.queryByText('Tienes cambios sin guardar.')).not.toBeInTheDocument()
   })
 
   it('rechaza un identificador de borrador inválido sin llamar a la API', async () => {

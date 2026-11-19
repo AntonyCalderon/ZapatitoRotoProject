@@ -6,7 +6,7 @@ const lineaGuardada = (id_sku, cantidad, nombre_modelo = 'Threshold') => ({
   id_sku, codigo_sku: `SKU-${id_sku}`, nombre_modelo, nombre_color: 'Negro', numero_talla: '40.0', cantidad
 });
 
-function crearRepositorioFalso({ orden = { estado: 'Borrador', lineas: [] }, problema = null } = {}) {
+function crearRepositorioFalso({ orden = { estado: 'BORRADOR', lineas: [] }, problema = null } = {}) {
   const llamadas = [];
   return {
     llamadas,
@@ -73,12 +73,12 @@ test('traduce los problemas de la transacción a errores HTTP', async () => {
 });
 
 test('consulta las líneas de un borrador con su resumen', async () => {
-  const orden = { estado: 'Borrador', lineas: [lineaGuardada(1, 12), lineaGuardada(2, 4, 'Colorado')] };
+  const orden = { estado: 'BORRADOR', lineas: [lineaGuardada(1, 12), lineaGuardada(2, 4, 'Colorado')] };
   const servicio = crearServicioLineasCompra(crearRepositorioFalso({ orden }));
 
   const resultado = await servicio.consultarLineasBorrador('5');
 
-  assert.equal(resultado.estado, 'Borrador');
+  assert.equal(resultado.estado, 'BORRADOR');
   assert.equal(resultado.total_pares, 16);
   assert.deepEqual(resultado.pares_por_modelo, [
     { nombre_modelo: 'Threshold', pares: 12 },

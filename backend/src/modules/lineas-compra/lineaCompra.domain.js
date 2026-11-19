@@ -23,8 +23,8 @@ function aNumero(valor) {
 export function validarEntero(valor, nombre) {
   const numero = aNumero(valor);
 
-  if (typeof numero !== 'number' || !Number.isSafeInteger(numero) || numero <= 0) {
-    throw errorHttp(`${nombre} debe ser un número entero mayor que cero.`, 400);
+  if (typeof numero !== 'number' || !Number.isSafeInteger(numero) || numero <= 0 || numero > 2147483647) {
+    throw errorHttp(`${nombre} debe ser un número entero entre 1 y 2147483647.`, 400);
   }
 
   return numero;

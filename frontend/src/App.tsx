@@ -17,11 +17,13 @@ import AdminInicio from './pages/AdminInicio'
 import CambiarPasswordPage from './pages/CambiarPasswordPage'
 import UsuariosPage from './pages/UsuariosPage'
 import ComprasBorradoresPage from './pages/ComprasBorradoresPage'
-import SeleccionCompraPage from './pages/SeleccionCompraPage'
+import CompraEditorPage from './pages/CompraEditorPage'
+import RolRoute from './components/RolRoute'
 
 export function InicioRoute() {
   const esAdministrador = useAuthStore((state) => state.user?.roles.includes('Administrador') ?? false)
-  return esAdministrador ? <AdminInicio /> : <Home />
+  const esCompras = useAuthStore((state) => state.user?.roles.includes('Compras') ?? false)
+  return esAdministrador ? <AdminInicio /> : esCompras ? <Navigate to="/compras" replace /> : <Home />
 }
 
 function App() {
@@ -43,8 +45,12 @@ function App() {
 
             {/* HU02: productos y tallas dentro de un borrador, solo rol Compras. */}
             <Route element={<ComprasRoute />}>
-              <Route path="/compras/borrador/:idOrden/productos" element={<SeleccionCompraPage />} />
+              <Route path="/compras/borrador/:idOrden" element={<CompraEditorPage />} />
+              <Route path="/compras/borrador/:idOrden/productos" element={<CompraEditorPage />} />
             </Route>
+
+            <Route element={<RolRoute rol="Ventas" />}><Route path="/ventas" element={<Home />} /></Route>
+            <Route element={<RolRoute rol="Almacen" />}><Route path="/almacen" element={<Home />} /></Route>
 
             {/* Funcionalidades exclusivas del Administrador. */}
             <Route element={<AdminRoute />}>

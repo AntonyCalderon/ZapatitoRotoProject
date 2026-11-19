@@ -5,7 +5,7 @@ import { registrarCostoBase } from '../costos-base/costoBase.service.js';
 import { consolidarLineas, validarEntero } from '../lineas-compra/lineaCompra.domain.js';
 import { buscarOrdenCompraPorId } from '../ordenes-compra/ordenCompra.repository.js';
 import { buscarProductoSkuPorId } from '../productos-sku/productoSku.repository.js';
-import { obtenerTasaIgv, resumirCostoAdquisicion } from './costoAdquisicion.service.js';
+import { resumirCostoAdquisicion } from './costoAdquisicion.service.js';
 
 const router = Router();
 
@@ -21,15 +21,14 @@ router.post('/ordenes/:idOrden/resumen-costos', requerirAutenticacion, autorizar
     if (!orden) {
       return res.status(404).json({ mensaje: 'La orden de compra no existe.' });
     }
-    if (orden.estado !== 'Borrador') {
+    if (orden.estado !== 'BORRADOR') {
       return res.status(409).json({ mensaje: 'Solo se pueden recalcular los costos de un borrador.' });
     }
 
     // Las cantidades pueden incluir cambios que todavía no se han guardado.
     const resumen = await resumirCostoAdquisicion(
       pool,
-      lineas.map(({ id_sku, cantidad }) => ({ idSku: id_sku, cantidad })),
-      obtenerTasaIgv()
+      lineas.map(({ id_sku, cantidad }) => ({ idSku: id_sku, cantidad }))
     );
     return res.json(resumen);
   } catch (error) {

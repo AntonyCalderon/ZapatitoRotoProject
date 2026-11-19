@@ -17,8 +17,8 @@ CREATE TABLE proveedor (
 CREATE TABLE orden_compra (
     id_orden_compra INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     codigo VARCHAR(20) UNIQUE,
-    estado VARCHAR(12) NOT NULL DEFAULT 'Borrador'
-        CHECK (estado IN ('Borrador', 'Emitida', 'Recibida', 'Cerrada', 'Cancelado')),
+    estado VARCHAR(12) NOT NULL DEFAULT 'BORRADOR'
+        CHECK (estado IN ('BORRADOR', 'EMITIDA', 'CANCELADO')),
     id_proveedor INTEGER REFERENCES proveedor (id_proveedor),
     id_usuario_creador INTEGER NOT NULL REFERENCES usuario (id_usuario),
     fecha_creacion TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -30,28 +30,12 @@ CREATE TABLE orden_compra (
     fecha_cierre TIMESTAMPTZ,
     id_usuario_cancela INTEGER REFERENCES usuario (id_usuario),
     fecha_cancelacion TIMESTAMPTZ,
-    tasa_igv NUMERIC(5,4) CHECK (tasa_igv >= 0),
     subtotal NUMERIC(12,2) CHECK (subtotal >= 0),
-    igv NUMERIC(12,2) CHECK (igv >= 0),
     total NUMERIC(12,2) CHECK (total >= 0),
     observacion VARCHAR(500),
 
-    CONSTRAINT ck_oc_emitida_completa CHECK (
-        estado IN ('Borrador', 'Cancelado')
-        OR (codigo IS NOT NULL AND id_proveedor IS NOT NULL
-            AND id_usuario_emisor IS NOT NULL AND fecha_emision IS NOT NULL
-            AND tasa_igv IS NOT NULL AND subtotal IS NOT NULL
-            AND igv IS NOT NULL AND total IS NOT NULL)
-    ),
-    CONSTRAINT ck_oc_recibida CHECK (
-        estado NOT IN ('Recibida', 'Cerrada')
-        OR (id_usuario_confirma IS NOT NULL AND fecha_confirmacion IS NOT NULL)
-    ),
-    CONSTRAINT ck_oc_cerrada CHECK (
-        estado <> 'Cerrada' OR (id_usuario_cierre IS NOT NULL AND fecha_cierre IS NOT NULL)
-    ),
     CONSTRAINT ck_oc_cancelada CHECK (
-        estado <> 'Cancelado'
+        estado <> 'CANCELADO'
         OR (id_usuario_cancela IS NOT NULL AND fecha_cancelacion IS NOT NULL AND codigo IS NULL)
     )
 );
