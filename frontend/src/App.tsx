@@ -1,8 +1,8 @@
-
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminRoute from './components/AdminRoute'
+import ComprasRoute from './components/ComprasRoute'
 import AdminLayout from './components/AdminLayout'
 import { useAuthStore } from './store/authStore'
 
@@ -16,6 +16,7 @@ import ProductosSkuPage from './pages/ProductosSkuPage'
 import AdminInicio from './pages/AdminInicio'
 import CambiarPasswordPage from './pages/CambiarPasswordPage'
 import UsuariosPage from './pages/UsuariosPage'
+import ComprasBorradoresPage from './pages/ComprasBorradoresPage'
 
 export function InicioRoute() {
   const esAdministrador = useAuthStore((state) => state.user?.roles.includes('Administrador') ?? false)
@@ -56,6 +57,11 @@ function App() {
 
               {/* Gestión de variantes SKU. */}
               <Route path="/productos-sku" element={<ProductosSkuPage />} />
+            </Route>
+
+            {/* HU01: borradores de solicitud de compra, solo rol Compras. */}
+            <Route element={<ComprasRoute />}>
+              <Route path="/compras" element={<ComprasBorradoresPage />} />
             </Route>
           </Route>
         </Route>
