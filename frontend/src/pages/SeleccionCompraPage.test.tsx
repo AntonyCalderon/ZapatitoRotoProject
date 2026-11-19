@@ -1,6 +1,8 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import type { LineaPedida } from '../services/lineaCompraService'
 import SeleccionCompraPage from './SeleccionCompraPage'
 
 function respuesta(datos: unknown, status = 200) {
@@ -18,9 +20,12 @@ interface Opciones {
   estado?: string
   lineasGuardadas?: ReturnType<typeof detalle>[]
   fallaAlGuardar?: boolean
+  costoAlGuardar?: number
 }
 
-function simularApi({ estado = 'BORRADOR', lineasGuardadas = [], fallaAlGuardar = false }: Opciones = {}) {
+function simularApi({ estado = 'BORRADOR', lineasGuardadas = [], fallaAlGuardar = false, costoAlGuardar }: Opciones = {}) {
+  const costos = new Map([[1, 180]])
+
   return vi.fn(async (entrada: RequestInfo | URL, opciones?: RequestInit) => {
     const ruta = String(entrada)
     if (ruta === '/api/lineas-compra/modelos') {
@@ -41,24 +46,47 @@ function simularApi({ estado = 'BORRADOR', lineasGuardadas = [], fallaAlGuardar 
     }
     if (ruta === '/api/ordenes-compra/7/detalles' && opciones?.method === 'POST') {
       if (fallaAlGuardar) return respuesta({ mensaje: 'La orden ya no es un borrador.' }, 409)
+      if (costoAlGuardar !== undefined) costos.set(1, costoAlGuardar)
       const { lineas } = JSON.parse(String(opciones.body)) as { lineas: { id_sku: number; cantidad: number }[] }
       const acumuladas = new Map(lineasGuardadas.map((l) => [l.id_sku, l]))
       for (const l of lineas) acumuladas.set(l.id_sku, detalle(l.id_sku, l.id_sku === 1 ? '40.0' : '41.0', (acumuladas.get(l.id_sku)?.cantidad ?? 0) + l.cantidad))
       const guardadas = [...acumuladas.values()]
       return respuesta({ mensaje: 'Líneas guardadas correctamente.', lineas: guardadas, total_pares: guardadas.reduce((s, l) => s + l.cantidad, 0), pares_por_modelo: [] })
     }
+    if (ruta === '/api/compras/ordenes/7/resumen-costos' && opciones?.method === 'POST') {
+      const { lineas } = JSON.parse(String(opciones.body)) as { lineas: LineaPedida[] }
+      const calculadas = lineas.map(({ id_sku, cantidad }) => {
+        const costo = costos.get(id_sku)
+        return { idSku: id_sku, cantidad, costoUnitario: costo?.toFixed(2) ?? null, importe: costo === undefined ? null : (costo * cantidad).toFixed(2) }
+      })
+      const subtotal = calculadas.reduce((suma, linea) => suma + Number(linea.importe), 0)
+      const completo = calculadas.every((linea) => linea.importe !== null)
+      return respuesta({
+        lineas: calculadas,
+        subtotalConocido: subtotal.toFixed(2),
+        total: completo ? subtotal.toFixed(2) : null,
+      })
+    }
+    if (ruta === '/api/compras/costos-faltantes/3' && opciones?.method === 'POST') {
+      const { costoUnitario } = JSON.parse(String(opciones.body)) as { costoUnitario: string }
+      costos.set(3, Number(costoUnitario))
+      return respuesta({ mensaje: 'Costo registrado.' }, 201)
+    }
     throw new Error(`Ruta inesperada: ${ruta}`)
   })
 }
 
 function mostrarPagina(idOrden = '7') {
+  const cliente = new QueryClient()
   render(
-    <MemoryRouter initialEntries={[`/compras/borrador/${idOrden}/productos`]}>
-      <Routes>
-        <Route path="/compras/borrador/:idOrden/productos" element={<SeleccionCompraPage />} />
-        <Route path="/compras" element={<p>Bandeja</p>} />
-      </Routes>
-    </MemoryRouter>
+    <QueryClientProvider client={cliente}>
+      <MemoryRouter initialEntries={[`/compras/borrador/${idOrden}/productos`]}>
+        <Routes>
+          <Route path="/compras/borrador/:idOrden/productos" element={<SeleccionCompraPage />} />
+          <Route path="/compras" element={<p>Bandeja</p>} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>
   )
 }
 
@@ -138,9 +166,47 @@ describe('Selección de modelos y tallas dentro de un borrador', () => {
     expect(screen.getByText('Tienes cambios sin guardar.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Guardar líneas' }))
 
-    expect(await screen.findByRole('status')).toHaveTextContent('16 pares en 2 líneas')
+    expect(await screen.findByText(/Líneas guardadas correctamente.*16 pares en 2 líneas/)).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/ordenes-compra/7/detalles', expect.objectContaining({ method: 'POST', credentials: 'include' }))
     await waitFor(() => expect(screen.queryByText('Tienes cambios sin guardar.')).not.toBeInTheDocument())
+  })
+
+  it('consulta el costo vigente otra vez al guardar líneas ya calculadas', async () => {
+    vi.stubGlobal('fetch', simularApi({ costoAlGuardar: 200 }))
+    mostrarPagina()
+    await elegirModeloYColor()
+
+    fireEvent.change(screen.getByLabelText('Talla 40'), { target: { value: '12' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar a la solicitud' }))
+    await waitFor(() => expect(screen.getByText('Total de adquisición').nextElementSibling).toHaveTextContent('S/ 2160.00'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar líneas' }))
+    await waitFor(() => expect(screen.getByText('Total de adquisición').nextElementSibling).toHaveTextContent('S/ 2400.00'))
+  })
+
+  it('recalcula el borrador al agregar pares y registrar el costo faltante', async () => {
+    const fetchMock = simularApi({ lineasGuardadas: [detalle(1, '40.0', 12)] })
+    vi.stubGlobal('fetch', fetchMock)
+    mostrarPagina()
+
+    const resumen = await screen.findByRole('region', { name: 'Resumen de costos de adquisición' })
+    expect(within(resumen).getByText('Total de adquisición').nextElementSibling).toHaveTextContent('S/ 2160.00')
+
+    await elegirModeloYColor()
+    fireEvent.change(screen.getByLabelText('Talla 41'), { target: { value: '1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar a la solicitud' }))
+
+    expect(await screen.findByText('Pendiente')).toBeInTheDocument()
+    const costo = screen.getByLabelText('Costo en soles para el SKU 3')
+    fireEvent.change(costo, { target: { value: '190,00' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar costo' }))
+
+    await waitFor(() => expect(screen.getByText('Total de adquisición').nextElementSibling).toHaveTextContent('S/ 2350.00'))
+    expect(screen.queryByText('Pendiente')).not.toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/compras/costos-faltantes/3', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ costoUnitario: '190.00' }),
+    }))
   })
 
   it('muestra el error del servidor cuando el borrador ya no se puede modificar', async () => {
