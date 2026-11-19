@@ -27,6 +27,9 @@ function armarResumen(lineas) {
 function verificarProblema(problema) {
   if (!problema) return;
 
+  if (problema.tipo === 'detalle_no_agregado') {
+    throw errorHttp('No se pudo agregar el lote: hay productos no disponibles o se supera el máximo de pares por línea.', 409);
+  }
   if (problema.tipo === 'orden_inexistente') {
     throw errorHttp('La orden de compra no existe.', 404);
   }
@@ -76,7 +79,27 @@ export function crearServicioLineasCompra(repositorio) {
     return armarResumen(resultado.lineas);
   }
 
+  async function agregarDetallesBorrador(idOrden, solicitadas) {
+    const orden = validarEntero(idOrden, 'La orden de compra');
+    if (!Array.isArray(solicitadas) || solicitadas.length === 0) throw errorHttp('Indica al menos una línea.', 400);
+    for (const linea of solicitadas) {
+      if (!linea || !Number.isSafeInteger(Number(linea.cantidad)) || Number(linea.cantidad) <= 0) {
+        throw errorHttp('La cantidad debe ser un entero positivo.', 400);
+      }
+    }
+    const lineas = consolidarLineas(solicitadas);
+    const resultado = await repositorio.agregarDetalles(orden, lineas);
+    verificarProblema(resultado.problema);
+    return armarResumen(resultado.lineas);
+  }
+
+  async function consultarCatalogo() {
+    return repositorio.listarCatalogoCompra();
+  }
+
   return {
+    consultarCatalogo,
+    agregarDetallesBorrador,
     consultarModelos,
     consultarColores,
     consultarTallas,

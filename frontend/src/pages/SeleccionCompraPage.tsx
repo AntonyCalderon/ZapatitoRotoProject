@@ -48,7 +48,7 @@ export default function SeleccionCompraPage() {
   const [error, setError] = useState(idValido ? '' : 'El borrador indicado no es válido.')
   const [mensaje, setMensaje] = useState('')
 
-  const editable = estado === 'Borrador'
+  const editable = estado === 'BORRADOR'
   const haySinGuardar = !lineasIguales(lineas, guardadas)
 
   useEffect(() => {
@@ -153,7 +153,7 @@ export default function SeleccionCompraPage() {
     setCantidades({})
   }
 
-  // Guardado manual: el servidor revalida los SKU y reemplaza las líneas del borrador.
+  // Guardado manual: agrega únicamente los pares nuevos; el servidor conserva las demás líneas.
   const guardar = async () => {
     setError('')
     setMensaje('')
@@ -161,7 +161,10 @@ export default function SeleccionCompraPage() {
       setGuardando(true)
       const resultado = await guardarLineasBorrador(
         idOrden,
-        lineas.map(({ id_sku, cantidad }) => ({ id_sku, cantidad }))
+        lineas.map(({ id_sku, cantidad }) => ({
+          id_sku,
+          cantidad: cantidad - (guardadas.find((guardada) => guardada.id_sku === id_sku)?.cantidad ?? 0)
+        })).filter((linea) => linea.cantidad > 0)
       )
       setLineas(resultado.lineas)
       setGuardadas(resultado.lineas)
@@ -288,7 +291,7 @@ export default function SeleccionCompraPage() {
                     <td className="px-6 py-4 font-semibold text-slate-900">{linea.cantidad}</td>
                     {editable && (
                       <td className="px-6 py-4 text-right">
-                        <button type="button" disabled={guardando} aria-label={`Quitar talla ${formatearTalla(linea.numero_talla)} ${linea.nombre_color}`} onClick={() => setLineas((actuales) => quitarLinea(actuales, linea.id_sku))} className="rounded-lg border border-rose-200 px-3 py-2 font-medium text-rose-700 transition hover:bg-rose-50 disabled:opacity-50">Quitar</button>
+                        <button type="button" disabled={guardando || guardadas.some((guardada) => guardada.id_sku === linea.id_sku)} aria-label={`Quitar talla ${formatearTalla(linea.numero_talla)} ${linea.nombre_color}`} onClick={() => setLineas((actuales) => quitarLinea(actuales, linea.id_sku))} className="rounded-lg border border-rose-200 px-3 py-2 font-medium text-rose-700 transition hover:bg-rose-50 disabled:opacity-50">Quitar</button>
                       </td>
                     )}
                   </tr>

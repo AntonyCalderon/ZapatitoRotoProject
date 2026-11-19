@@ -58,3 +58,22 @@ export async function guardarLineasController(req, res) {
     return responderError(res, error, 'guardar las líneas del borrador');
   }
 }
+
+export async function agregarDetallesController(req, res) {
+  try {
+    const solicitadas = req.body?.lineas ?? [req.body];
+    const resultado = await servicioLineasCompra.agregarDetallesBorrador(req.params.id, solicitadas);
+    return res.status(201).json({ mensaje: 'Líneas guardadas correctamente.', ...resultado });
+  } catch (error) { return responderError(res, error, 'agregar detalles'); }
+}
+
+export async function consultarDetallesController(req, res) {
+  try {
+    return res.json(await servicioLineasCompra.consultarLineasBorrador(req.params.id));
+  } catch (error) { return responderError(res, error, 'consultar detalles'); }
+}
+
+export async function consultarCatalogoController(req, res) {
+  try { return res.status(200).json(await servicioLineasCompra.consultarCatalogo()); }
+  catch (error) { return responderError(res, error, 'consultar el catálogo de compra'); }
+}

@@ -20,7 +20,7 @@ interface Opciones {
   fallaAlGuardar?: boolean
 }
 
-function simularApi({ estado = 'Borrador', lineasGuardadas = [], fallaAlGuardar = false }: Opciones = {}) {
+function simularApi({ estado = 'BORRADOR', lineasGuardadas = [], fallaAlGuardar = false }: Opciones = {}) {
   return vi.fn(async (entrada: RequestInfo | URL, opciones?: RequestInit) => {
     const ruta = String(entrada)
     if (ruta === '/api/lineas-compra/modelos') {
@@ -35,14 +35,16 @@ function simularApi({ estado = 'Borrador', lineasGuardadas = [], fallaAlGuardar 
         { id_sku: 3, id_talla: 3, numero_talla: '41.0' }
       ] })
     }
-    if (ruta === '/api/lineas-compra/ordenes/7/lineas' && !opciones?.method) {
+    if (ruta === '/api/ordenes-compra/7/detalles' && !opciones?.method) {
       const total = lineasGuardadas.reduce((s, l) => s + l.cantidad, 0)
       return respuesta({ estado, lineas: lineasGuardadas, total_pares: total, pares_por_modelo: [] })
     }
-    if (ruta === '/api/lineas-compra/ordenes/7/lineas' && opciones?.method === 'PUT') {
+    if (ruta === '/api/ordenes-compra/7/detalles' && opciones?.method === 'POST') {
       if (fallaAlGuardar) return respuesta({ mensaje: 'La orden ya no es un borrador.' }, 409)
       const { lineas } = JSON.parse(String(opciones.body)) as { lineas: { id_sku: number; cantidad: number }[] }
-      const guardadas = lineas.map((l) => detalle(l.id_sku, l.id_sku === 1 ? '40.0' : '41.0', l.cantidad))
+      const acumuladas = new Map(lineasGuardadas.map((l) => [l.id_sku, l]))
+      for (const l of lineas) acumuladas.set(l.id_sku, detalle(l.id_sku, l.id_sku === 1 ? '40.0' : '41.0', (acumuladas.get(l.id_sku)?.cantidad ?? 0) + l.cantidad))
+      const guardadas = [...acumuladas.values()]
       return respuesta({ mensaje: 'Líneas guardadas correctamente.', lineas: guardadas, total_pares: guardadas.reduce((s, l) => s + l.cantidad, 0), pares_por_modelo: [] })
     }
     throw new Error(`Ruta inesperada: ${ruta}`)
@@ -137,7 +139,7 @@ describe('Selección de modelos y tallas dentro de un borrador', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Guardar líneas' }))
 
     expect(await screen.findByRole('status')).toHaveTextContent('16 pares en 2 líneas')
-    expect(fetchMock).toHaveBeenCalledWith('/api/lineas-compra/ordenes/7/lineas', expect.objectContaining({ method: 'PUT', credentials: 'include' }))
+    expect(fetchMock).toHaveBeenCalledWith('/api/ordenes-compra/7/detalles', expect.objectContaining({ method: 'POST', credentials: 'include' }))
     await waitFor(() => expect(screen.queryByText('Tienes cambios sin guardar.')).not.toBeInTheDocument())
   })
 
@@ -154,22 +156,19 @@ describe('Selección de modelos y tallas dentro de un borrador', () => {
   })
 
   it('no permite editar una orden que no está en Borrador', async () => {
-    vi.stubGlobal('fetch', simularApi({ estado: 'Emitida', lineasGuardadas: [detalle(1, '40.0', 12)] }))
+    vi.stubGlobal('fetch', simularApi({ estado: 'EMITIDA', lineasGuardadas: [detalle(1, '40.0', 12)] }))
     mostrarPagina()
 
-    expect(await screen.findByText(/estado Emitida/)).toBeInTheDocument()
+    expect(await screen.findByText(/estado EMITIDA/)).toBeInTheDocument()
     expect(screen.queryByLabelText('Modelo')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Guardar líneas' })).not.toBeInTheDocument()
   })
 
-  it('quita una línea y la marca como cambio sin guardar', async () => {
+  it('reserva quitar líneas persistidas para HU16', async () => {
     vi.stubGlobal('fetch', simularApi({ lineasGuardadas: [detalle(1, '40.0', 12)] }))
     mostrarPagina()
-
-    fireEvent.click(await screen.findByRole('button', { name: /Quitar talla 40/ }))
-
-    expect(await screen.findByText('Aún no agregaste líneas.')).toBeInTheDocument()
-    expect(screen.getByText('Tienes cambios sin guardar.')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /Quitar talla 40/ })).toBeDisabled()
+    expect(screen.queryByText('Tienes cambios sin guardar.')).not.toBeInTheDocument()
   })
 
   it('rechaza un identificador de borrador inválido sin llamar a la API', async () => {

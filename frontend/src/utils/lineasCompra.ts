@@ -4,6 +4,9 @@ No usan React ni red, por eso se prueban de forma directa.
 */
 
 export interface LineaSolicitud {
+  id_detalle_compra?: number
+  costo_unitario?: string | null
+  importe?: string | null
   id_sku: number
   codigo_sku: string
   nombre_modelo: string

@@ -6,6 +6,7 @@ Configura Express, registra las rutas HTTP e inicia el servidor.
 */
 
 import express from 'express';
+import { instalarErroresApi } from './middlewares/erroresApi.js';
 import 'dotenv/config';
 
 import ordenCompraRoutes from './modules/ordenes-compra/ordenCompra.routes.js';
@@ -60,6 +61,8 @@ app.use('/api/lineas-compra', lineaCompraRoutes);
 
 // API de Compras: borradores de órdenes de compra.
 app.use('/api/ordenes-compra', ordenCompraRoutes);
+
+instalarErroresApi(app);
 
 // Puerto donde escuchará el backend.
 const PORT = Number(process.env.PORT || 3000);

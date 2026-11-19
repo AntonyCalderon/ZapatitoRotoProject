@@ -13,7 +13,7 @@ function errorHttp(mensaje, status) {
 
 function validarId(valor, nombre) {
   const id = Number(valor);
-  if (!Number.isSafeInteger(id) || id <= 0) {
+  if (!Number.isSafeInteger(id) || id <= 0 || id > 2147483647) {
     throw errorHttp(`El ID de ${nombre} no es válido.`, 400);
   }
   return id;
@@ -23,8 +23,11 @@ export async function registrarBorrador(idUsuario) {
   return crearBorrador(idUsuario);
 }
 
-export async function obtenerBorradores() {
-  return listarBorradores();
+export async function obtenerBorradores(estado) {
+  if (estado !== undefined && !['BORRADOR', 'EMITIDA', 'CANCELADO'].includes(estado)) {
+    throw errorHttp('Estado inválido. Usa BORRADOR, EMITIDA o CANCELADO.', 400);
+  }
+  return listarBorradores(estado ?? null);
 }
 
 export async function consultarOrdenCompra(idOrden) {
@@ -37,11 +40,11 @@ export async function consultarOrdenCompra(idOrden) {
 export async function actualizarBorrador(idOrden, idProveedor, observacion) {
   const id = validarId(idOrden, 'orden de compra');
 
-  const proveedor = idProveedor === undefined || idProveedor === null
+  const proveedor = idProveedor === undefined ? undefined : idProveedor === null
     ? null
     : validarId(idProveedor, 'proveedor');
 
-  let texto = null;
+  let texto = observacion === undefined ? undefined : null;
   if (observacion !== undefined && observacion !== null) {
     if (typeof observacion !== 'string' || observacion.length > 500) {
       throw errorHttp('La observación no es válida (máximo 500 caracteres).', 400);
