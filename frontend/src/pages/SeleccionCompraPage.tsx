@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import CuadriculaTallas from '../components/CuadriculaTallas'
+import ResumenCostoAdquisicion from '../components/ResumenCostoAdquisicion'
 import {
+  calcularResumenCostos,
   guardarLineasBorrador,
   obtenerColoresCompra,
   obtenerLineasBorrador,
@@ -50,6 +53,15 @@ export default function SeleccionCompraPage() {
 
   const editable = estado === 'Borrador'
   const haySinGuardar = !lineasIguales(lineas, guardadas)
+  const lineasPedidas = lineas.map(({ id_sku, cantidad }) => ({ id_sku, cantidad }))
+  const mostrarResumen = idValido && editable && !cargando && lineasPedidas.length > 0
+  const resumenCostos = useQuery({
+    queryKey: ['resumen-costos-borrador', idOrden, lineasPedidas],
+    queryFn: ({ signal }) => calcularResumenCostos(idOrden, lineasPedidas, signal),
+    enabled: mostrarResumen,
+    gcTime: 0,
+    retry: false,
+  })
 
   useEffect(() => {
     if (!idValido) return
@@ -159,10 +171,7 @@ export default function SeleccionCompraPage() {
     setMensaje('')
     try {
       setGuardando(true)
-      const resultado = await guardarLineasBorrador(
-        idOrden,
-        lineas.map(({ id_sku, cantidad }) => ({ id_sku, cantidad }))
-      )
+      const resultado = await guardarLineasBorrador(idOrden, lineasPedidas)
       setLineas(resultado.lineas)
       setGuardadas(resultado.lineas)
       setMensaje(`${resultado.mensaje} ${resultado.total_pares} pares en ${resultado.lineas.length} líneas.`)
@@ -297,6 +306,26 @@ export default function SeleccionCompraPage() {
             </table>
           </div>
         </section>
+
+        {mostrarResumen && (
+          resumenCostos.data ? (
+            <ResumenCostoAdquisicion
+              resumen={resumenCostos.data}
+              actualizarResumen={async () => { await resumenCostos.refetch({ throwOnError: true }) }}
+            />
+          ) : resumenCostos.isError ? (
+            <div className="space-y-2 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+              <p role="alert">{resumenCostos.error.message}</p>
+              <button type="button" className="font-semibold underline" onClick={() => void resumenCostos.refetch()}>
+                Reintentar cálculo
+              </button>
+            </div>
+          ) : (
+            <p role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+              Calculando costos de adquisición…
+            </p>
+          )
+        )}
       </div>
     </div>
   )

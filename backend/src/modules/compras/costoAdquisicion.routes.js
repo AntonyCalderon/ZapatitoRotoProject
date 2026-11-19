@@ -1,9 +1,50 @@
 import { Router } from 'express';
+import pool from '../../config/database.js';
 import { autorizarRoles, requerirAutenticacion } from '../../middlewares/autorizarRoles.js';
 import { registrarCostoBase } from '../costos-base/costoBase.service.js';
+import { consolidarLineas, validarEntero } from '../lineas-compra/lineaCompra.domain.js';
+import { buscarOrdenCompraPorId } from '../ordenes-compra/ordenCompra.repository.js';
 import { buscarProductoSkuPorId } from '../productos-sku/productoSku.repository.js';
+import { resumirCostoAdquisicion } from './costoAdquisicion.service.js';
 
 const router = Router();
+
+router.post('/ordenes/:idOrden/resumen-costos', requerirAutenticacion, autorizarRoles('Compras'), async (req, res) => {
+  try {
+    const idOrden = validarEntero(req.params.idOrden, 'La orden de compra');
+    if (idOrden > 2_147_483_647) {
+      return res.status(400).json({ mensaje: 'El identificador de la orden de compra no es válido.' });
+    }
+
+    const lineas = consolidarLineas(req.body?.lineas);
+    const orden = await buscarOrdenCompraPorId(idOrden);
+    if (!orden) {
+      return res.status(404).json({ mensaje: 'La orden de compra no existe.' });
+    }
+    if (orden.estado !== 'Borrador') {
+      return res.status(409).json({ mensaje: 'Solo se pueden recalcular los costos de un borrador.' });
+    }
+
+    const tasaIgv = process.env.IGV_TASA?.trim() ?? '';
+    if (!/^(?:0(?:\.\d{1,4})?|1(?:\.0{1,4})?)$/.test(tasaIgv)) {
+      return res.status(503).json({ mensaje: 'Configura IGV_TASA en el backend como una fracción entre 0 y 1 con hasta cuatro decimales.' });
+    }
+
+    // Las cantidades pueden incluir cambios que todavía no se han guardado.
+    const resumen = await resumirCostoAdquisicion(
+      pool,
+      lineas.map(({ id_sku, cantidad }) => ({ idSku: id_sku, cantidad })),
+      tasaIgv
+    );
+    return res.json(resumen);
+  } catch (error) {
+    if (error.status === 400 || error instanceof RangeError) {
+      return res.status(400).json({ mensaje: error.message });
+    }
+    console.error('Error al calcular el costo de adquisición:', error.message);
+    return res.status(500).json({ mensaje: 'No se pudo calcular el resumen de costos.' });
+  }
+});
 
 router.post('/costos-faltantes/:idSku', requerirAutenticacion, autorizarRoles('Compras'), async (req, res) => {
   const idSku = Number(req.params.idSku);

@@ -1,8 +1,8 @@
 /*
-Comunicación con la API de líneas de compra (HU02).
-Cada función corresponde a una ruta de /api/lineas-compra.
+Comunicación con las API de líneas de compra y del resumen de costos del borrador.
 */
 
+import type { DatosResumenCostoAdquisicion } from '../components/ResumenCostoAdquisicion'
 import type { LineaSolicitud, ParesPorModelo } from '../utils/lineasCompra'
 
 export interface ModeloCompra {
@@ -71,4 +71,15 @@ export async function guardarLineasBorrador(idOrden: number, lineas: LineaPedida
     body: JSON.stringify({ lineas })
   })
   return procesarRespuesta<LineasBorrador & { mensaje: string }>(respuesta)
+}
+
+export async function calcularResumenCostos(idOrden: number, lineas: LineaPedida[], signal: AbortSignal) {
+  const respuesta = await fetch(`/api/compras/ordenes/${idOrden}/resumen-costos`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lineas }),
+    signal
+  })
+  return procesarRespuesta<DatosResumenCostoAdquisicion>(respuesta)
 }
