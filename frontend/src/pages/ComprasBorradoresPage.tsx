@@ -237,6 +237,21 @@ export default function ComprasBorradoresPage() {
             )}
 
             <div className="mt-4 flex flex-wrap justify-end gap-3">
+              {abierto.estado === 'Borrador' && (
+                <button
+                  type="button"
+                  disabled={ocupado}
+                  onClick={() => {
+                    if (confirmarSalida()) {
+                      navigate(`/compras/borrador/${abierto.id_orden_compra}/productos`)
+                    }
+                  }}
+                  className="rounded-lg border border-indigo-600 bg-white px-5 py-3 text-sm font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+                >
+                  Seleccionar productos
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={volverALaBandeja}
