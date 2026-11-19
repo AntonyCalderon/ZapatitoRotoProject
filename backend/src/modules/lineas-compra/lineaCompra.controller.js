@@ -77,3 +77,18 @@ export async function consultarCatalogoController(req, res) {
   try { return res.status(200).json(await servicioLineasCompra.consultarCatalogo()); }
   catch (error) { return responderError(res, error, 'consultar el catálogo de compra'); }
 }
+
+
+export async function modificarCantidadDetalleController(req, res) {
+  try {
+    const resultado = await servicioLineasCompra.modificarCantidadDetalle(req.params.id, req.params.detalleId, req.body?.cantidad, req.body?.cantidad_anterior);
+    return res.json({ mensaje: 'Cantidad actualizada correctamente.', ...resultado });
+  } catch (error) { return responderError(res, error, 'modificar la cantidad'); }
+}
+
+export async function quitarDetalleController(req, res) {
+  try {
+    const resultado = await servicioLineasCompra.quitarDetalle(req.params.id, req.params.detalleId);
+    return res.json({ mensaje: 'Línea retirada correctamente.', ...resultado });
+  } catch (error) { return responderError(res, error, 'quitar la línea del borrador'); }
+}

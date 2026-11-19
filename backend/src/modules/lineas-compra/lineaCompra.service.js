@@ -27,6 +27,8 @@ function armarResumen(lineas) {
 function verificarProblema(problema) {
   if (!problema) return;
 
+  if (problema.tipo === 'detalle_inexistente') throw errorHttp('La línea no pertenece a esta solicitud o ya fue retirada.', 404);
+  if (problema.tipo === 'detalle_modificado') throw errorHttp('Otra persona cambió la cantidad. Vuelve a abrir el borrador antes de modificarla.', 409);
   if (problema.tipo === 'detalle_no_agregado') {
     throw errorHttp('No se pudo agregar el lote: hay productos no disponibles o se supera el máximo de pares por línea.', 409);
   }
@@ -97,7 +99,33 @@ export function crearServicioLineasCompra(repositorio) {
     return repositorio.listarCatalogoCompra();
   }
 
+  function validarCantidadDetalle(valor) {
+    const cantidad = validarEntero(valor, 'La cantidad');
+    if (cantidad > 100000) throw errorHttp('La cantidad no puede superar 100000 pares.', 400);
+    return cantidad;
+  }
+
+  async function modificarCantidadDetalle(idOrden, idDetalle, cantidad, cantidadAnterior) {
+    const orden = validarEntero(idOrden, 'La orden de compra');
+    const detalle = validarEntero(idDetalle, 'El detalle');
+    const unidades = validarCantidadDetalle(cantidad);
+    const anterior = cantidadAnterior === undefined ? undefined : validarCantidadDetalle(cantidadAnterior);
+    const resultado = await repositorio.modificarCantidadDetalle(orden, detalle, unidades, anterior);
+    verificarProblema(resultado.problema);
+    return armarResumen(resultado.lineas);
+  }
+
+  async function quitarDetalle(idOrden, idDetalle) {
+    const orden = validarEntero(idOrden, 'La orden de compra');
+    const detalle = validarEntero(idDetalle, 'El detalle');
+    const resultado = await repositorio.quitarDetalle(orden, detalle);
+    verificarProblema(resultado.problema);
+    return armarResumen(resultado.lineas);
+  }
+
   return {
+    modificarCantidadDetalle,
+    quitarDetalle,
     consultarCatalogo,
     agregarDetallesBorrador,
     consultarModelos,

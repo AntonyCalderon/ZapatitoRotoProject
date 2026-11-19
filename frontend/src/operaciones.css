@@ -35,3 +35,5 @@
 .ops-model-menu [role=option].is-active{background:#f0eeff;color:#5145cf}.ops-model-menu p{margin:0;padding:10px;color:#8390a6}
 
 .ops-draft-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;white-space:nowrap}.ops-btn-cancel{color:#ae4653;border-color:#f0dce0}.ops-btn-cancel:hover{background:#fff5f6}.ops-draft-actions a[aria-disabled=true]{opacity:.5;cursor:not-allowed}
+
+.ops-edit-quantity{width:80px;min-height:36px;border:1px solid #dfe4ef;border-radius:6px;padding:6px 8px;text-align:right;background:white;color:#354460}.ops-edit-quantity[aria-invalid=true]{border-color:#b34b54}
