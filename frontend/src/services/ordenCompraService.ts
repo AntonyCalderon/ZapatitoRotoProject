@@ -18,6 +18,33 @@ export interface DatosBorrador {
   observacion: string
 }
 
+interface Revision {
+  proveedor: { razon_social: string } | null
+  pares: number
+  total: string | null
+  subtotal: string | null
+  igv: string | null
+  version: string
+  avisos: string[]
+  lineas: { codigo_sku: string; anterior: string | null; costo: string | null }[]
+}
+
+async function solicitudCompra<T>(ruta: string, opciones?: RequestInit) {
+  return procesarRespuesta<T>(await fetch('/api/ordenes-compra/' + ruta, {
+    credentials: 'include', ...opciones
+  }))
+}
+export const obtenerProveedores = () =>
+  solicitudCompra<{ id_proveedor: number; razon_social: string }[]>('proveedores')
+export const obtenerEmitidas = () =>
+  solicitudCompra<{ id_orden_compra: number; codigo: string }[]>('emitidas')
+export const revisarEmision = (id: number) => solicitudCompra<Revision>(id + '/revision')
+export interface OrigenCompra { tipo: string; referencia: string }
+export const confirmarEmision = (id: number, version: string, origenes: OrigenCompra[]) =>
+  solicitudCompra<{ codigo: string }>(id + '/emitir', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version, origenes })
+  })
+
 // Procesa respuestas y errores enviados por Express.
 async function procesarRespuesta<T>(respuesta: Response): Promise<T> {
   const datos = await respuesta.json()

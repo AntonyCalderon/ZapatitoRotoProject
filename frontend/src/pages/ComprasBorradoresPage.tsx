@@ -5,6 +5,8 @@ import { cerrarSesion } from '../services/authApi'
 import { useAuthStore } from '../store/authStore'
 import {
   obtenerBorradores,
+  obtenerProveedores, obtenerEmitidas, revisarEmision, confirmarEmision,
+  type OrigenCompra,
   consultarOrdenCompra,
   crearBorrador,
   guardarBorrador,
@@ -24,6 +26,10 @@ export default function ComprasBorradoresPage() {
   const [borradores, setBorradores] = useState<OrdenCompra[]>([])
   const [abierto, setAbierto] = useState<OrdenCompra | null>(null)
   const [observacion, setObservacion] = useState('')
+  const [proveedor, setProveedor] = useState<number | null>(null)
+  const [origenes, setOrigenes] = useState<OrigenCompra[]>([])
+  const [proveedores, setProveedores] = useState<Awaited<ReturnType<typeof obtenerProveedores>>>([])
+  const [emitidas, setEmitidas] = useState<Awaited<ReturnType<typeof obtenerEmitidas>>>([])
 
   const [cargando, setCargando] = useState(true)
   const [ocupado, setOcupado] = useState(false)
@@ -32,7 +38,15 @@ export default function ComprasBorradoresPage() {
 
   // RN-04: hay cambios sin guardar si el texto difiere de lo guardado.
   const haySinGuardar =
-    abierto !== null && observacion.trim() !== (abierto.observacion ?? '')
+    abierto !== null && (observacion.trim() !== (abierto.observacion ?? '') || proveedor !== abierto.id_proveedor)
+
+  useEffect(() => {
+    let vigente = true
+    Promise.all([obtenerProveedores(), obtenerEmitidas()]).then(([lista, ordenes]) => {
+      if (vigente) { setProveedores(lista); setEmitidas(ordenes) }
+    }).catch(err => { if (vigente) setError(err.message) })
+    return () => { vigente = false }
+  }, [])
 
   // Cargamos la bandeja al abrir la pantalla.
   useEffect(() => {
@@ -75,7 +89,9 @@ export default function ComprasBorradoresPage() {
     window.confirm('Tienes cambios sin guardar. ¿Deseas salir sin guardar?')
 
   const abrir = (orden: OrdenCompra) => {
+    if (orden.id_orden_compra !== abierto?.id_orden_compra) setOrigenes([])
     setAbierto(orden)
+    setProveedor(orden.id_proveedor)
     setObservacion(orden.observacion ?? '')
   }
 
@@ -111,6 +127,9 @@ export default function ComprasBorradoresPage() {
     try {
       setOcupado(true)
       const respuesta = await consultarOrdenCompra(idOrden)
+      if (respuesta.orden.id_orden_compra !== idOrden) {
+        throw new Error('La respuesta no corresponde al borrador seleccionado.')
+      }
       abrir(respuesta.orden)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo abrir el borrador.')
@@ -133,7 +152,7 @@ export default function ComprasBorradoresPage() {
     try {
       setOcupado(true)
       const respuesta = await guardarBorrador(abierto.id_orden_compra, {
-        id_proveedor: abierto.id_proveedor,
+        id_proveedor: proveedor,
         observacion: observacion.trim()
       })
       abrir(respuesta.orden)
@@ -152,6 +171,32 @@ export default function ComprasBorradoresPage() {
     setObservacion('')
     setError('')
     setMensaje('')
+  }
+
+  const emitir = async () => {
+    if (!abierto || ocupado) return
+    setMensaje('')
+    setError('')
+    if (haySinGuardar) { setError('Guarda los cambios antes de emitir.'); return }
+    setOcupado(true)
+    try {
+      const id = abierto.id_orden_compra
+      const revision = await revisarEmision(id)
+      if (revision.avisos.length) { setError(revision.avisos.join(' ')); return }
+      const cambios = revision.lineas.filter(l => l.anterior !== null && l.anterior !== l.costo)
+        .map(l => l.codigo_sku + ': S/ ' + l.anterior + ' → S/ ' + l.costo)
+      const resumen = [revision.proveedor?.razon_social, revision.pares + ' pares',
+        'Subtotal S/ ' + revision.subtotal, 'IGV S/ ' + revision.igv, 'Total S/ ' + revision.total,
+        ...cambios, '¿Confirmas la emisión de la orden?'].join('\n')
+      if (!window.confirm(resumen)) return
+      const { codigo } = await confirmarEmision(id, revision.version, origenes)
+      setEmitidas(actual => [{ id_orden_compra: id, codigo }, ...actual.filter(o => o.id_orden_compra !== id)])
+      setBorradores(actual => actual.filter(o => o.id_orden_compra !== id))
+      setAbierto(null)
+      setMensaje('Orden emitida: ' + codigo)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo emitir la orden.')
+    } finally { setOcupado(false) }
   }
 
   const cerrar = async () => {
@@ -202,11 +247,11 @@ export default function ComprasBorradoresPage() {
 
         {/* Borrador abierto. */}
         {abierto && (
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section key={abierto.id_orden_compra} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-bold text-slate-900">
-                  Borrador #{abierto.id_orden_compra}
+                  {`Borrador #${abierto.id_orden_compra}`}
                 </h2>
                 <p className="text-sm text-slate-500">
                   Creado el {formatearFecha(abierto.fecha_creacion)}
@@ -218,6 +263,14 @@ export default function ComprasBorradoresPage() {
               </span>
             </div>
 
+            <label className="mb-4 block text-sm font-semibold">Proveedor
+              <select value={proveedor ?? ''} disabled={ocupado}
+                onChange={e => setProveedor(e.target.value ? Number(e.target.value) : null)}
+                className="mt-1 block rounded-lg border p-2">
+                <option value="">Seleccionar proveedor</option>
+                {proveedores.map(p => <option key={p.id_proveedor} value={p.id_proveedor}>{p.razon_social}</option>)}
+              </select>
+            </label>
             <label htmlFor="observacion" className="mb-2 block text-sm font-semibold text-slate-800">
               Observaciones
             </label>
@@ -236,7 +289,27 @@ export default function ComprasBorradoresPage() {
               <p className="mt-2 text-sm font-medium text-amber-700">Tienes cambios sin guardar.</p>
             )}
 
+            <fieldset disabled={ocupado} className="mt-4 space-y-2">
+              <legend className="text-sm font-semibold">Referencias internas para la emisión</legend>
+              {origenes.map((origen, i) => <div key={i} className="flex flex-wrap gap-2">
+                <select aria-label={'Tipo de origen ' + (i + 1)} value={origen.tipo}
+                  onChange={e => setOrigenes(origenes.map((o,j) => j === i ? { ...o, tipo:e.target.value } : o))}>
+                  {['Pedido','Contrato','Licitacion','Reposicion'].map(t => <option key={t}>{t}</option>)}
+                </select>
+                <input aria-label={'Referencia ' + (i + 1)} placeholder="Referencia" maxLength={80}
+                  className="rounded border px-2" value={origen.referencia}
+                  onChange={e => setOrigenes(origenes.map((o,j) => j === i ? { ...o, referencia:e.target.value } : o))}/>
+                <button type="button" onClick={() => setOrigenes(origenes.filter((_,j) => j !== i))}>Quitar</button>
+              </div>)}
+              <button type="button" className="text-sm text-indigo-700 underline"
+                onClick={() => setOrigenes([...origenes,{tipo:'Pedido',referencia:''}])}>Añadir referencia</button>
+            </fieldset>
+
             <div className="mt-4 flex flex-wrap justify-end gap-3">
+              <button type="button" disabled={ocupado} onClick={() => void emitir()}
+                className="rounded-lg bg-indigo-700 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
+                Revisar y emitir orden
+              </button>
               {abierto.estado === 'Borrador' && (
                 <button
                   type="button"
@@ -274,6 +347,14 @@ export default function ComprasBorradoresPage() {
         )}
 
         {/* Bandeja de borradores. */}
+        {emitidas.length > 0 && <section className="rounded-2xl border bg-white p-6">
+          <h2 className="font-semibold">Órdenes emitidas</h2>
+          {emitidas.map(o => <p key={o.id_orden_compra} className="mt-2">
+            <a href={`/api/ordenes-compra/${o.id_orden_compra}/pdf`} className="text-indigo-700 underline">
+              Descargar {o.codigo} (PDF)
+            </a>
+          </p>)}
+        </section>}
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 p-6">
             <div>
