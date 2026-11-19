@@ -1,0 +1,74 @@
+/*
+Comunicación con la API de líneas de compra (HU02).
+Cada función corresponde a una ruta de /api/lineas-compra.
+*/
+
+import type { LineaSolicitud, ParesPorModelo } from '../utils/lineasCompra'
+
+export interface ModeloCompra {
+  id_modelo: number
+  nombre_modelo: string
+}
+
+export interface ColorCompra {
+  id_color: number
+  nombre_color: string
+}
+
+export interface TallaCompra {
+  id_sku: number
+  id_talla: number
+  numero_talla: string
+}
+
+export interface LineaPedida {
+  id_sku: number
+  cantidad: number
+}
+
+export interface LineasBorrador {
+  estado?: string
+  lineas: LineaSolicitud[]
+  total_pares: number
+  pares_por_modelo: ParesPorModelo[]
+}
+
+const API_URL = '/api/lineas-compra'
+
+async function procesarRespuesta<T>(respuesta: Response): Promise<T> {
+  const datos = await respuesta.json()
+  if (!respuesta.ok) throw new Error(datos.mensaje || 'Ocurrió un error al procesar la solicitud.')
+  return datos as T
+}
+
+export async function obtenerModelosCompra(): Promise<ModeloCompra[]> {
+  const respuesta = await fetch(`${API_URL}/modelos`, { credentials: 'include' })
+  return (await procesarRespuesta<{ modelos: ModeloCompra[] }>(respuesta)).modelos
+}
+
+export async function obtenerColoresCompra(idModelo: number): Promise<ColorCompra[]> {
+  const respuesta = await fetch(`${API_URL}/modelos/${idModelo}/colores`, { credentials: 'include' })
+  return (await procesarRespuesta<{ colores: ColorCompra[] }>(respuesta)).colores
+}
+
+export async function obtenerTallasCompra(idModelo: number, idColor: number): Promise<TallaCompra[]> {
+  const respuesta = await fetch(`${API_URL}/modelos/${idModelo}/colores/${idColor}/tallas`, { credentials: 'include' })
+  return (await procesarRespuesta<{ tallas: TallaCompra[] }>(respuesta)).tallas
+}
+
+// Líneas ya guardadas en el borrador.
+export async function obtenerLineasBorrador(idOrden: number): Promise<LineasBorrador> {
+  const respuesta = await fetch(`${API_URL}/ordenes/${idOrden}/lineas`, { credentials: 'include' })
+  return procesarRespuesta<LineasBorrador>(respuesta)
+}
+
+// Guardado manual: reemplaza todas las líneas del borrador.
+export async function guardarLineasBorrador(idOrden: number, lineas: LineaPedida[]) {
+  const respuesta = await fetch(`${API_URL}/ordenes/${idOrden}/lineas`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lineas })
+  })
+  return procesarRespuesta<LineasBorrador & { mensaje: string }>(respuesta)
+}

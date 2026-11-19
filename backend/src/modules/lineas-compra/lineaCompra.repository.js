@@ -1,0 +1,120 @@
+/*
+@file lineaCompra.repository.js
+@description Consultas PostgreSQL de HU02: elegir SKUs y guardar las líneas de un borrador de compra.
+
+Un SKU se puede comprar cuando el SKU, su modelo, su color y su talla están activos.
+*/
+
+import pool from '../../config/database.js';
+
+const UNIONES_SKU = `
+  JOIN modelo m ON m.id_modelo = p.id_modelo
+  JOIN color c ON c.id_color = p.id_color
+  JOIN talla t ON t.id_talla = p.id_talla`;
+
+const CONDICION_COMPRABLE = 'p.activo AND m.activo AND c.activo AND t.activo';
+
+const SKU_COMPRABLE = `FROM producto_sku p ${UNIONES_SKU} WHERE ${CONDICION_COMPRABLE}`;
+
+// Las líneas ya guardadas se muestran aunque el SKU se desactive después.
+const SQL_LINEAS_DE_ORDEN = `
+  SELECT d.id_sku, p.codigo_sku, m.nombre_modelo, c.nombre_color, t.numero_talla, d.cantidad
+  FROM detalle_orden_compra d
+  JOIN producto_sku p ON p.id_sku = d.id_sku ${UNIONES_SKU}
+  WHERE d.id_orden_compra = $1
+  ORDER BY m.nombre_modelo, c.nombre_color, t.numero_talla`;
+
+export async function listarModelosConSku() {
+  const resultado = await pool.query(
+    `SELECT DISTINCT m.id_modelo, m.nombre_modelo ${SKU_COMPRABLE}
+     ORDER BY m.nombre_modelo`
+  );
+  return resultado.rows;
+}
+
+export async function listarColoresPorModelo(idModelo) {
+  const resultado = await pool.query(
+    `SELECT DISTINCT c.id_color, c.nombre_color ${SKU_COMPRABLE}
+       AND p.id_modelo = $1
+     ORDER BY c.nombre_color`,
+    [idModelo]
+  );
+  return resultado.rows;
+}
+
+export async function listarTallasPorModeloYColor(idModelo, idColor) {
+  const resultado = await pool.query(
+    `SELECT p.id_sku, t.id_talla, t.numero_talla ${SKU_COMPRABLE}
+       AND p.id_modelo = $1 AND p.id_color = $2
+     ORDER BY t.numero_talla`,
+    [idModelo, idColor]
+  );
+  return resultado.rows;
+}
+
+// Devuelve null si la orden no existe.
+export async function obtenerLineasDeOrden(idOrden) {
+  const orden = await pool.query(
+    'SELECT estado FROM orden_compra WHERE id_orden_compra = $1',
+    [idOrden]
+  );
+  if (orden.rowCount === 0) return null;
+
+  const lineas = await pool.query(SQL_LINEAS_DE_ORDEN, [idOrden]);
+  return { estado: orden.rows[0].estado, lineas: lineas.rows };
+}
+
+/*
+Reemplaza todas las líneas del borrador en una sola transacción.
+FOR UPDATE bloquea la orden para que nadie la emita o cancele mientras se guardan sus líneas.
+Si algún SKU ya no se puede comprar, no se guarda nada.
+*/
+export async function reemplazarLineas(idOrden, lineas) {
+  const cliente = await pool.connect();
+  try {
+    await cliente.query('BEGIN');
+
+    const orden = await cliente.query(
+      'SELECT estado FROM orden_compra WHERE id_orden_compra = $1 FOR UPDATE',
+      [idOrden]
+    );
+    if (orden.rowCount === 0) {
+      await cliente.query('ROLLBACK');
+      return { lineas: null, problema: { tipo: 'orden_inexistente' } };
+    }
+    if (orden.rows[0].estado !== 'Borrador') {
+      await cliente.query('ROLLBACK');
+      return { lineas: null, problema: { tipo: 'no_es_borrador' } };
+    }
+
+    await cliente.query('DELETE FROM detalle_orden_compra WHERE id_orden_compra = $1', [idOrden]);
+
+    if (lineas.length > 0) {
+      const insertadas = await cliente.query(
+        `INSERT INTO detalle_orden_compra (id_orden_compra, id_sku, cantidad)
+         SELECT $1, p.id_sku, e.cantidad
+         FROM unnest($2::int[], $3::int[]) AS e(id_sku, cantidad)
+         JOIN producto_sku p ON p.id_sku = e.id_sku ${UNIONES_SKU}
+         WHERE ${CONDICION_COMPRABLE}
+         RETURNING id_sku`,
+        [idOrden, lineas.map((l) => l.id_sku), lineas.map((l) => l.cantidad)]
+      );
+
+      if (insertadas.rowCount !== lineas.length) {
+        const guardados = new Set(insertadas.rows.map((fila) => fila.id_sku));
+        const ids = lineas.map((l) => l.id_sku).filter((id) => !guardados.has(id));
+        await cliente.query('ROLLBACK');
+        return { lineas: null, problema: { tipo: 'sku_no_disponible', ids } };
+      }
+    }
+
+    const detalle = await cliente.query(SQL_LINEAS_DE_ORDEN, [idOrden]);
+    await cliente.query('COMMIT');
+    return { lineas: detalle.rows, problema: null };
+  } catch (error) {
+    await cliente.query('ROLLBACK');
+    throw error;
+  } finally {
+    cliente.release();
+  }
+}
