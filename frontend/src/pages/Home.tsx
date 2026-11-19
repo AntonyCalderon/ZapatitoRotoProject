@@ -1,6 +1,5 @@
-﻿
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+﻿import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { cerrarSesion } from '../services/authApi'
 
@@ -8,6 +7,9 @@ export default function Home() {
   const user = useAuthStore((state) => state.user)
   const logout = useAuthStore((state) => state.logout)
   const navigate = useNavigate()
+
+  // Solo el Encargado de Compras ve el acceso a solicitudes de compra.
+  const esCompras = user?.roles.includes('Compras') ?? false
 
   const [cerrandoSesion, setCerrandoSesion] = useState(false)
   const [errorSalida, setErrorSalida] = useState('')
@@ -104,6 +106,26 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        {/* HU01: acceso del Encargado de Compras a sus borradores. */}
+        {esCompras && (
+          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900">
+              Compras
+            </h2>
+
+            <p className="mt-2 text-sm text-slate-600">
+              Prepara tus solicitudes de compra en estado borrador.
+            </p>
+
+            <Link
+              to="/compras"
+              className="mt-4 inline-block rounded-lg bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700"
+            >
+              Solicitudes de compra
+            </Link>
+          </section>
+        )}
 
       </div>
     </main>

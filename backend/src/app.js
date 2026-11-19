@@ -8,6 +8,8 @@ Configura Express, registra las rutas HTTP e inicia el servidor.
 import express from 'express';
 import 'dotenv/config';
 
+import ordenCompraRoutes from './modules/ordenes-compra/ordenCompra.routes.js';
+
 import costoBaseRoutes from './modules/costos-base/costoBase.routes.js';
 
 import authRoutes from './modules/auth/auth.routes.js';
@@ -21,6 +23,9 @@ import colorRoutes from './modules/colores/color.routes.js';
 import productoSkuRoutes from './modules/productos-sku/productoSku.routes.js';
 import costoAdquisicionRoutes from './modules/compras/costoAdquisicion.routes.js';
 
+
+// HU02: selección de modelos, colores y tallas dentro de un borrador de compra.
+import lineaCompraRoutes from './modules/lineas-compra/lineaCompra.routes.js';
 
 const app = express();
 
@@ -51,6 +56,13 @@ app.use('/api/colores', colorRoutes);
 
 // API administrativa de variantes SKU.
 app.use('/api/productos-sku', productoSkuRoutes);
+
+
+// API de líneas de compra: productos y cantidades de un borrador (rol Compras).
+app.use('/api/lineas-compra', lineaCompraRoutes);
+
+// API de Compras: borradores de órdenes de compra.
+app.use('/api/ordenes-compra', ordenCompraRoutes);
 
 // Puerto donde escuchará el backend.
 const PORT = Number(process.env.PORT || 3000);
