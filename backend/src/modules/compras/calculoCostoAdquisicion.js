@@ -17,8 +17,14 @@ function aSoles(centimos) {
   return `${soles}.${decimales}`;
 }
 
-// Costos finales del proveedor; no se agrega un recargo tributario.
-export function calcularCostoAdquisicion(lineas) {
+// Los costos y la tasa se reciben como texto decimal para operar en céntimos.
+export function calcularCostoAdquisicion(lineas, tasaIgv) {
+  if (typeof tasaIgv !== 'string' || !/^(?:0(?:\.\d{1,4})?|1(?:\.0{1,4})?)$/.test(tasaIgv)) {
+    throw new RangeError('La tasa de IGV debe ser una fracción entre 0 y 1 con hasta cuatro decimales.');
+  }
+
+  const [entero, decimales = ''] = tasaIgv.split('.');
+  const tasaEscalada = BigInt(entero) * 10_000n + BigInt(decimales.padEnd(4, '0'));
   let subtotalConocido = 0n;
   let faltaCosto = false;
   const lineasCalculadas = lineas.map((linea) => {
@@ -35,9 +41,11 @@ export function calcularCostoAdquisicion(lineas) {
     return { ...linea, importe: aSoles(importe) };
   });
 
+  const igv = (subtotalConocido * tasaEscalada + 5_000n) / 10_000n;
   return {
     lineas: lineasCalculadas,
     subtotalConocido: aSoles(subtotalConocido),
-    total: faltaCosto ? null : aSoles(subtotalConocido)
+    igv: faltaCosto ? null : aSoles(igv),
+    total: faltaCosto ? null : aSoles(subtotalConocido + igv)
   };
 }

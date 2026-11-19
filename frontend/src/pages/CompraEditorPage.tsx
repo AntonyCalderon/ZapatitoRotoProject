@@ -1,18 +1,21 @@
 import { useEffect, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { consultarOrdenCompra, guardarBorrador, type OrdenCompra } from '../services/ordenCompraService'
-import { obtenerLineasBorrador, guardarLineasBorrador } from '../services/lineaCompraService'
+import { calcularResumenCostos, obtenerLineasBorrador, guardarLineasBorrador } from '../services/lineaCompraService'
 import { agregarLineas, formatearTalla, lineasIguales, totalPares, type LineaSolicitud } from '../utils/lineasCompra'
 import { useAuthStore } from '../store/authStore'
 import { useCambiosOperacion } from '../components/OperacionLayout'
 import { EstadoCompra, fechaCompra, OpIcon, soles } from '../components/OperacionUI'
 import AgregarProductosDialog from '../components/AgregarProductosDialog'
+import CampoCostoFaltante from '../components/CampoCostoFaltante'
 
 export default function CompraEditorPage() {
   const id = Number(useParams().idOrden)
   const valido = Number.isSafeInteger(id) && id > 0 && id <= 2147483647
   const user = useAuthStore(s => s.user)
   const setDirty = useCambiosOperacion()
+  const clienteConsultas = useQueryClient()
   const [orden, setOrden] = useState<OrdenCompra | null>(null)
   const [lineas, setLineas] = useState<LineaSolicitud[]>([])
   const [guardadas, setGuardadas] = useState<LineaSolicitud[]>([])
@@ -27,6 +30,21 @@ export default function CompraEditorPage() {
   const notasPendientes = orden !== null && observacion !== (orden.observacion ?? '')
   const dirty = lineasPendientes || notasPendientes
   const editable = orden?.estado === 'BORRADOR'
+  const lineasPedidas = lineas.map(({ id_sku, cantidad }) => ({ id_sku, cantidad }))
+  const claveResumen = ['resumen-costos-borrador', id]
+  const consultaCostos = useQuery({
+    queryKey: [...claveResumen, lineasPedidas],
+    queryFn: ({ signal }) => calcularResumenCostos(id, lineasPedidas, signal),
+    enabled: valido && orden?.id_orden_compra === id && editable && !cargando && lineas.length > 0,
+    retry: false,
+    gcTime: 0,
+  })
+  const resumen = consultaCostos.data
+  const costosPorSku = new Map(resumen?.lineas.map(linea => [linea.idSku, linea]))
+  async function actualizarResumen() {
+    await consultaCostos.refetch({ throwOnError: true })
+  }
+
   useEffect(() => {
     let activo = true
     setCargando(true); setError(''); setMensaje(''); setOrden(null); setLineas([]); setGuardadas([]); setObservacion('')
@@ -63,6 +81,7 @@ export default function CompraEditorPage() {
         // Actualizar inmediatamente: si falla después la observación, reintentar
         // no debe volver a sumar pares que el servidor ya confirmó.
         setLineas(datos.lineas); setGuardadas(datos.lineas); productosGuardados = true
+        void clienteConsultas.invalidateQueries({ queryKey: claveResumen })
       }
       if (notasPendientes) {
         const datos = await guardarBorrador(id, { observacion: observacion.trim() })
@@ -89,10 +108,42 @@ export default function CompraEditorPage() {
           {!lineas.length ? <tr><td colSpan={7}><div className="ops-empty-state"><OpIcon name="caja" /><h3>Agrega los productos de tu compra</h3><p>Selecciona modelo, color y tallas para empezar.<br />Puedes guardar una solicitud incompleta.</p></div></td></tr> : lineas.map(l => {
             const existente = guardadas.find(g => g.id_sku === l.id_sku)
             const pendiente = l.cantidad !== (existente?.cantidad ?? 0)
-            return <tr key={l.id_sku}><td><strong>{l.nombre_modelo}</strong>{l.codigo_sku && <small className="ops-row-note">{l.codigo_sku}</small>}</td><td>{l.nombre_color}</td><td><span className="ops-size-badge">{formatearTalla(l.numero_talla)}</span></td><td className="ops-number"><strong>{l.cantidad}</strong><small className="ops-row-note">pares</small></td><td className={`ops-number ${l.costo_unitario == null ? 'ops-pending' : ''}`}>{soles(l.costo_unitario)}</td><td className={`ops-number ${l.importe == null || pendiente ? 'ops-pending' : ''}`}>{soles(pendiente ? null : l.importe)}</td><td className="ops-center">{pendiente ? <div className="ops-pending-actions"><span className="ops-pending-label">Sin guardar</span><button className="ops-icon-button" disabled={ocupado} aria-label={`Retirar selección talla ${formatearTalla(l.numero_talla)} ${l.nombre_color}`} onClick={() => setLineas(ls => existente ? ls.map(a => a.id_sku === l.id_sku ? existente : a) : ls.filter(a => a.id_sku !== l.id_sku))}><OpIcon name="quitar" /></button></div> : <span className="ops-saved"><OpIcon name="check" />Guardado</span>}</td></tr>
+            const costo = costosPorSku.get(l.id_sku)
+            const costoUnitario = editable ? costo?.costoUnitario : l.costo_unitario
+            const importe = editable ? costo?.importe : l.importe
+            return <tr key={l.id_sku}>
+              <td><strong>{l.nombre_modelo}</strong>{l.codigo_sku && <small className="ops-row-note">{l.codigo_sku}</small>}</td>
+              <td>{l.nombre_color}</td>
+              <td><span className="ops-size-badge">{formatearTalla(l.numero_talla)}</span></td>
+              <td className="ops-number"><strong>{l.cantidad}</strong><small className="ops-row-note">pares</small></td>
+              <td className={`ops-number ${costoUnitario == null ? 'ops-pending' : ''}`}>
+                {editable && costoUnitario === null
+                  ? <CampoCostoFaltante idSku={l.id_sku} actualizarResumen={actualizarResumen} />
+                  : costoUnitario == null ? '—' : soles(costoUnitario)}
+              </td>
+              <td className={`ops-number ${importe == null ? 'ops-pending' : ''}`}>{importe == null ? '—' : soles(importe)}</td>
+              <td className="ops-center">{pendiente ? <div className="ops-pending-actions"><span className="ops-pending-label">Sin guardar</span><button className="ops-icon-button" disabled={ocupado} aria-label={`Retirar selección talla ${formatearTalla(l.numero_talla)} ${l.nombre_color}`} onClick={() => setLineas(ls => existente ? ls.map(a => a.id_sku === l.id_sku ? existente : a) : ls.filter(a => a.id_sku !== l.id_sku))}><OpIcon name="quitar" /></button></div> : <span className="ops-saved"><OpIcon name="check" />Guardado</span>}</td>
+            </tr>
           })}
         </tbody></table></div>
-        <div className="ops-order-bottom"><label className="ops-field ops-notes">Observaciones <span className="ops-optional">Opcional</span><textarea maxLength={500} rows={3} disabled={!editable || ocupado} value={observacion} onChange={e => { setObservacion(e.target.value); setMensaje('') }} placeholder="Añade una nota para esta solicitud…" /><span className="ops-character-count">{observacion.length}/500</span></label><div className="ops-order-summary"><div><span>Total de pares</span><strong>{totalPares(lineas)}</strong></div><div><span>Líneas de producto</span><strong>{lineas.length}</strong></div><div className="ops-grand-total"><span>Total de adquisición</span><strong>{soles(lineasPendientes ? null : orden.total)}</strong></div>{(orden.total == null || lineasPendientes) && <p>Los importes pendientes aún no se incluyen en un total.</p>}</div></div>
+        <div className="ops-order-bottom">
+          <label className="ops-field ops-notes">Observaciones <span className="ops-optional">Opcional</span><textarea maxLength={500} rows={3} disabled={!editable || ocupado} value={observacion} onChange={e => { setObservacion(e.target.value); setMensaje('') }} placeholder="Añade una nota para esta solicitud…" /><span className="ops-character-count">{observacion.length}/500</span></label>
+          <section className="ops-order-summary" aria-label="Resumen de costos de adquisición">
+            <div><span>Total de pares</span><strong>{totalPares(lineas)}</strong></div>
+            <div><span>Líneas de producto</span><strong>{lineas.length}</strong></div>
+            {resumen && <>
+              <div><span>{resumen.total === null ? 'Subtotal conocido' : 'Subtotal'}</span><strong>{soles(resumen.subtotalConocido)}</strong></div>
+              <div><span>IGV</span><strong>{resumen.igv === null ? 'Por calcular' : soles(resumen.igv)}</strong></div>
+            </>}
+            <div className="ops-grand-total">
+              <span>Total de adquisición</span>
+              <strong>{editable ? resumen && !consultaCostos.isError ? soles(resumen.total) : '—' : soles(orden.total)}</strong>
+            </div>
+            {consultaCostos.isFetching && <p role="status">Calculando costos…</p>}
+            {consultaCostos.isError && <p role="alert">{consultaCostos.error.message} <button className="ops-text-button" onClick={() => void consultaCostos.refetch()}>Reintentar cálculo</button></p>}
+            {resumen?.total === null && <p>Registra los costos faltantes para obtener el total.</p>}
+          </section>
+        </div>
         <div className="ops-card-actions"><span className={`ops-save-status ${dirty ? 'is-dirty' : ''}`}><OpIcon name={dirty ? 'reloj' : 'check'} />{dirty ? 'Tienes cambios sin guardar' : 'Todos los cambios guardados'}</span>{editable && <button className="ops-btn ops-btn-primary" disabled={ocupado || !dirty} onClick={() => void guardar()}><OpIcon name="guardar" />{ocupado ? 'Guardando…' : 'Guardar borrador'}</button>}</div>
       </section>
     </>}
