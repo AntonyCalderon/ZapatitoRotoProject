@@ -193,3 +193,46 @@ export async function listarCatalogoCompra() {
     .sort((a,b) => Number(a.numero_talla)-Number(b.numero_talla));
   return {modelos,colores,tallas,variantes};
 }
+
+
+// Todas las operaciones de detalle toman primero el bloqueo de la orden,
+// igual que guardar, agregar y cancelar: no se modifica una orden ya emitida.
+async function cambiarDetalle(idOrden, idDetalle, operacion, cantidad, cantidadAnterior) {
+  const cliente = await pool.connect();
+  try {
+    await cliente.query('BEGIN');
+    const orden = await cliente.query('SELECT estado FROM orden_compra WHERE id_orden_compra=$1 FOR UPDATE', [idOrden]);
+    if (!orden.rowCount || orden.rows[0].estado !== 'BORRADOR') {
+      await cliente.query('ROLLBACK');
+      return { problema: { tipo: orden.rowCount ? 'no_es_borrador' : 'orden_inexistente' } };
+    }
+    const detalle = await cliente.query('SELECT cantidad FROM detalle_orden_compra WHERE id_orden_compra=$1 AND id_detalle_compra=$2', [idOrden, idDetalle]);
+    if (!detalle.rowCount) {
+      await cliente.query('ROLLBACK');
+      return { problema: { tipo: 'detalle_inexistente' } };
+    }
+    if (cantidadAnterior !== undefined && detalle.rows[0].cantidad !== cantidadAnterior) {
+      await cliente.query('ROLLBACK');
+      return { problema: { tipo: 'detalle_modificado' } };
+    }
+    if (operacion === 'modificar') {
+      await cliente.query('UPDATE detalle_orden_compra SET cantidad=$3 WHERE id_orden_compra=$1 AND id_detalle_compra=$2', [idOrden, idDetalle, cantidad]);
+    } else {
+      await cliente.query('DELETE FROM detalle_orden_compra WHERE id_orden_compra=$1 AND id_detalle_compra=$2', [idOrden, idDetalle]);
+    }
+    await guardarImportesDeLineas(cliente, idOrden);
+    const resultado = await cliente.query(SQL_LINEAS_DE_ORDEN, [idOrden]);
+    await cliente.query('COMMIT');
+    return { lineas: resultado.rows, problema: null };
+  } catch (error) {
+    await cliente.query('ROLLBACK');
+    throw error;
+  } finally { cliente.release(); }
+}
+
+export function modificarCantidadDetalle(idOrden, idDetalle, cantidad, cantidadAnterior) {
+  return cambiarDetalle(idOrden, idDetalle, 'modificar', cantidad, cantidadAnterior);
+}
+export function quitarDetalle(idOrden, idDetalle) {
+  return cambiarDetalle(idOrden, idDetalle, 'quitar');
+}

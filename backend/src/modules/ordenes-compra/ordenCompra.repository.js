@@ -67,3 +67,35 @@ export async function guardarBorrador(idOrden, idProveedor, observacion) {
     cliente.release();
   }
 }
+export async function cancelarBorrador(idOrden, idUsuario) {
+  const cliente = await pool.connect();
+  try {
+    await cliente.query('BEGIN');
+    const actual = await cliente.query(
+      'SELECT estado FROM orden_compra WHERE id_orden_compra = $1 FOR UPDATE',
+      [idOrden]
+    );
+    if (actual.rowCount === 0) {
+      await cliente.query('ROLLBACK');
+      return { orden: null, problema: { tipo: 'orden_inexistente' } };
+    }
+    if (actual.rows[0].estado !== 'BORRADOR') {
+      await cliente.query('ROLLBACK');
+      return { orden: null, problema: { tipo: 'no_es_borrador' } };
+    }
+    const resultado = await cliente.query(
+      `UPDATE orden_compra
+       SET estado = 'CANCELADO', id_usuario_cancela = $2, fecha_cancelacion = now()
+       WHERE id_orden_compra = $1
+       RETURNING id_orden_compra, estado, id_usuario_cancela, fecha_cancelacion`,
+      [idOrden, idUsuario]
+    );
+    await cliente.query('COMMIT');
+    return { orden: resultado.rows[0], problema: null };
+  } catch (error) {
+    await cliente.query('ROLLBACK');
+    throw error;
+  } finally {
+    cliente.release();
+  }
+}
