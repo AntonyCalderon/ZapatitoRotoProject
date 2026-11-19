@@ -16,13 +16,31 @@ const CONDICION_COMPRABLE = 'p.activo AND m.activo AND c.activo AND t.activo';
 
 const SKU_COMPRABLE = `FROM producto_sku p ${UNIONES_SKU} WHERE ${CONDICION_COMPRABLE}`;
 
+const UNION_COSTO_VIGENTE = 'LEFT JOIN costo_base cb ON cb.id_modelo = p.id_modelo AND cb.id_talla = p.id_talla';
+
 // Las líneas ya guardadas se muestran aunque el SKU se desactive después.
 const SQL_LINEAS_DE_ORDEN = `
-  SELECT d.id_detalle_compra, d.costo_unitario, d.importe, d.id_sku, p.codigo_sku, m.nombre_modelo, c.nombre_color, t.numero_talla, d.cantidad
+  SELECT d.id_detalle_compra,
+    CASE WHEN oc.estado = 'BORRADOR' THEN cb.costo_vigente ELSE d.costo_unitario END AS costo_unitario,
+    CASE WHEN oc.estado = 'BORRADOR' THEN cb.costo_vigente * d.cantidad ELSE d.importe END AS importe,
+    d.id_sku, p.codigo_sku, m.nombre_modelo, c.nombre_color, t.numero_talla, d.cantidad
   FROM detalle_orden_compra d
+  JOIN orden_compra oc ON oc.id_orden_compra = d.id_orden_compra
   JOIN producto_sku p ON p.id_sku = d.id_sku ${UNIONES_SKU}
+  ${UNION_COSTO_VIGENTE}
   WHERE d.id_orden_compra = $1
   ORDER BY m.nombre_modelo, c.nombre_color, t.numero_talla`;
+
+async function guardarImportesDeLineas(cliente, idOrden) {
+  await cliente.query(`
+    UPDATE detalle_orden_compra d
+    SET costo_unitario = cb.costo_vigente, importe = cb.costo_vigente * d.cantidad
+    FROM producto_sku p ${UNION_COSTO_VIGENTE}
+    WHERE d.id_orden_compra = $1 AND d.id_sku = p.id_sku
+      AND (d.costo_unitario, d.importe) IS DISTINCT FROM (cb.costo_vigente, cb.costo_vigente * d.cantidad)`,
+    [idOrden]
+  );
+}
 
 export async function listarModelosConSku() {
   const resultado = await pool.query(
@@ -108,6 +126,7 @@ export async function reemplazarLineas(idOrden, lineas) {
       }
     }
 
+    await guardarImportesDeLineas(cliente, idOrden);
     const detalle = await cliente.query(SQL_LINEAS_DE_ORDEN, [idOrden]);
     await cliente.query('COMMIT');
     return { lineas: detalle.rows, problema: null };
@@ -144,6 +163,7 @@ export async function agregarDetalles(idOrden, lineas) {
       await cliente.query('ROLLBACK');
       return { problema: { tipo: 'detalle_no_agregado', ids: lineas.filter(l => !insertadas.rows.some(r => r.id_sku === l.id_sku)).map(l => l.id_sku) } };
     }
+    await guardarImportesDeLineas(cliente, idOrden);
     const resultado = await cliente.query(SQL_LINEAS_DE_ORDEN, [idOrden]);
     await cliente.query('COMMIT');
     return { lineas: resultado.rows, problema: null };
@@ -154,7 +174,7 @@ export async function agregarDetalles(idOrden, lineas) {
 }
 
 // Catálogo de consulta de Compras. Una sola lectura mantiene coherentes las
-// opciones y sus SKU. El costo vigente es referencia; no se fija en el detalle.
+// opciones y sus SKU. El costo vigente se consulta por modelo y talla.
 export async function listarCatalogoCompra() {
   const resultado = await pool.query(`
     SELECT p.id_sku, p.codigo_sku, p.id_modelo, p.id_color, p.id_talla,

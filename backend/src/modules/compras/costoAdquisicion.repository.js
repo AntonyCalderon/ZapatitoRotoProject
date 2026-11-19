@@ -1,3 +1,11 @@
+export async function consultarTasaIgv(conexion) {
+  const { rows } = await conexion.query(
+    'SELECT valor::numeric(5,4)::text AS tasa FROM parametro_sistema WHERE clave = $1',
+    ['IGV_TASA']
+  );
+  return rows[0]?.tasa ?? null;
+}
+
 /** Consulta el costo vigente por modelo y talla de las líneas de compra. */
 export async function consultarCostosVigentesPorSku(conexion, idsSku) {
   if (idsSku.length === 0) return [];
