@@ -11,7 +11,6 @@ test('conserva el subtotal conocido y oculta el total definitivo mientras falte 
     <ResumenCostoAdquisicion resumen={{
       lineas: [lineaConCosto, { idSku: 3, cantidad: 1, costoUnitario: null, importe: null }],
       subtotalConocido: '390.00',
-      igv: null,
       total: null,
     }} />,
   )
@@ -26,13 +25,11 @@ test('conserva el subtotal conocido y oculta el total definitivo mientras falte 
     <ResumenCostoAdquisicion resumen={{
       lineas: [lineaConCosto, { idSku: 3, cantidad: 1, costoUnitario: '190.00', importe: '190.00' }],
       subtotalConocido: '580.00',
-      igv: '104.40',
-      total: '684.40',
+      total: '580.00',
     }} />,
   )
 
-  expect(totales.getByText('S/ 104.40')).toBeInTheDocument()
-  expect(totales.getByText('S/ 684.40')).toBeInTheDocument()
+  expect(totales.getAllByText('S/ 580.00')).toHaveLength(2)
   expect(totales.queryByText('Pendiente')).not.toBeInTheDocument()
 })
 
@@ -49,7 +46,6 @@ test('valida el costo y, si falla el recálculo, permite reintentar sin guardar 
       resumen={{
         lineas: [{ idSku: 3, cantidad: 1, costoUnitario: null, importe: null }],
         subtotalConocido: '0.00',
-        igv: null,
         total: null,
       }}
       actualizarResumen={actualizarResumen}

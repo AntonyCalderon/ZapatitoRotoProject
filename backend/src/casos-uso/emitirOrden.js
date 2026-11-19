@@ -1,5 +1,4 @@
 import pool from '../config/database.js';
-import { obtenerTasaIgv } from '../modules/compras/costoAdquisicion.service.js';
 import { prepararRevision, validarOrigenes } from '../modules/ordenes-compra/emision.domain.js';
 
 const fallo = (status, mensaje) => Object.assign(new Error(mensaje), { status });
@@ -8,7 +7,7 @@ async function revisar(db, id) {
   const { rows: [orden] } = await db.query(
     `SELECT estado, id_proveedor FROM orden_compra WHERE id_orden_compra=$1 FOR UPDATE`, [id]);
   if (!orden) throw fallo(404, 'La orden no existe.');
-  if (orden.estado !== 'Borrador') throw fallo(409, 'Solo se puede emitir un borrador.');
+  if (orden.estado !== 'BORRADOR') throw fallo(409, 'Solo se puede emitir un borrador.');
   const { rows: [proveedor] } = await db.query(
     'SELECT id_proveedor, razon_social, ruc, direccion FROM proveedor WHERE id_proveedor=$1', [orden.id_proveedor]);
   const { rows: lineas } = await db.query(
@@ -20,7 +19,7 @@ async function revisar(db, id) {
      LEFT JOIN costo_base b ON b.id_modelo=p.id_modelo AND b.id_talla=p.id_talla
      WHERE d.id_orden_compra=$1 ORDER BY d.id_sku`, [id]);
   const { rows: [parametro] } = await db.query("SELECT valor FROM parametro_sistema WHERE clave='LOTE_MINIMO_PARES'");
-  return prepararRevision(proveedor ?? null, lineas, Number(parametro?.valor), obtenerTasaIgv());
+  return prepararRevision(proveedor ?? null, lineas, Number(parametro?.valor));
 }
 
 export async function procesarEmision(idOrden, idUsuario, confirmacion) {
@@ -51,11 +50,11 @@ export async function procesarEmision(idOrden, idUsuario, confirmacion) {
       await db.query(`UPDATE detalle_orden_compra SET costo_unitario=$3, importe=$4
         WHERE id_orden_compra=$1 AND id_sku=$2`, [id, linea.id_sku, linea.costo, linea.importe]);
     }
-    await db.query(`UPDATE orden_compra SET estado='Emitida', codigo=$2, id_usuario_emisor=$3,
-      fecha_emision=now(), tasa_igv=$6, igv=$7, subtotal=$8, total=$4, documento_emitido=$5
+    await db.query(`UPDATE orden_compra SET estado='EMITIDA', codigo=$2, id_usuario_emisor=$3,
+      fecha_emision=now(), subtotal=$6, total=$4, documento_emitido=$5
       WHERE id_orden_compra=$1`, [id, codigo, idUsuario, revision.total,
       JSON.stringify({ proveedor: revision.proveedor, lineas: revision.lineas, pares: revision.pares }),
-      revision.tasaIgv, revision.igv, revision.subtotal]);
+      revision.subtotal]);
     await db.query('COMMIT');
     return { codigo };
   } catch (error) {

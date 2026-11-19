@@ -20,7 +20,7 @@ async function iniciarPrueba(t) {
       const roles = argumentos[0] === 1 ? ['Compras'] : ['Ventas'];
       return { rows: [{ activo: true, debe_cambiar_password: false, roles }] };
     }
-    if (sql.includes('FROM orden_compra oc')) return { rows: [{ estado: 'Borrador' }] };
+    if (sql.includes('FROM orden_compra oc')) return { rows: [{ estado: 'BORRADOR' }] };
     if (sql.includes('FROM producto_sku p')) {
       const sku = productos.get(argumentos[0]);
       return { rows: sku ? [sku] : [] };
@@ -45,13 +45,6 @@ async function iniciarPrueba(t) {
       return { rows: [costo] };
     }
     assert.fail(`Consulta inesperada: ${sql}`);
-  });
-
-  const tasaAnterior = process.env.IGV_TASA;
-  process.env.IGV_TASA = '0.18';
-  t.after(() => {
-    if (tasaAnterior === undefined) delete process.env.IGV_TASA;
-    else process.env.IGV_TASA = tasaAnterior;
   });
 
   const app = express();
@@ -94,7 +87,7 @@ test('registra un costo por modelo y talla, lo usa para sus colores y recalcula 
 
   const completo = await enviar(resumen, { lineas }, 200);
   assert.deepEqual(completo.lineas.map(({ costoUnitario }) => costoUnitario), ['180.00', '180.00']);
-  assert.deepEqual([completo.subtotalConocido, completo.igv, completo.total], ['2160.00', '388.80', '2548.80']);
+  assert.deepEqual([completo.subtotalConocido, completo.total], ['2160.00', '2160.00']);
 
   const conOtraTalla = await enviar(resumen, { lineas: [...lineas, { id_sku: 3, cantidad: 1 }] }, 200);
   assert.equal(conOtraTalla.subtotalConocido, '2160.00');
@@ -102,7 +95,7 @@ test('registra un costo por modelo y talla, lo usa para sus colores y recalcula 
 
   catalogo.set('1/40', { ...alta.costo, costo_vigente: '200.00' });
   const actualizado = await enviar(resumen, { lineas }, 200);
-  assert.equal(actualizado.total, '2832.00');
+  assert.equal(actualizado.total, '2400.00');
 });
 
 test('rechaza altas sin rol Compras, con costos inválidos o con productos inactivos', async (t) => {

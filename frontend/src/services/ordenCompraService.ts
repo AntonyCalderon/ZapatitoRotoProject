@@ -5,7 +5,11 @@
 
 export interface OrdenCompra {
   id_orden_compra: number
-  estado: string
+  estado: 'BORRADOR' | 'EMITIDA' | 'CANCELADO'
+  proveedor?: string | null
+  codigo?: string | null
+  subtotal?: string | null
+  total?: string | null
   id_proveedor: number | null
   id_usuario_creador: number
   creador?: string
@@ -14,8 +18,8 @@ export interface OrdenCompra {
 }
 
 export interface DatosBorrador {
-  id_proveedor: number | null
-  observacion: string
+  id_proveedor?: number | null
+  observacion?: string | null
 }
 
 interface Revision {
@@ -23,7 +27,6 @@ interface Revision {
   pares: number
   total: string | null
   subtotal: string | null
-  igv: string | null
   version: string
   avisos: string[]
   lineas: { codigo_sku: string; anterior: string | null; costo: string | null }[]
@@ -58,7 +61,7 @@ async function procesarRespuesta<T>(respuesta: Response): Promise<T> {
 
 // GET: lista los borradores para la bandeja.
 export async function obtenerBorradores(): Promise<OrdenCompra[]> {
-  const respuesta = await fetch('/api/ordenes-compra', { credentials: 'include' })
+  const respuesta = await fetch('/api/ordenes-compra?estado=BORRADOR', { credentials: 'include' })
   const datos = await procesarRespuesta<{ borradores: OrdenCompra[] }>(respuesta)
   return datos.borradores
 }
@@ -78,10 +81,10 @@ export async function crearBorrador() {
   return procesarRespuesta<{ mensaje: string; orden: OrdenCompra }>(respuesta)
 }
 
-// PUT: guarda manualmente el borrador (CA-02).
+// PATCH: guarda los datos del borrador mediante la ruta del contrato acordado.
 export async function guardarBorrador(idOrden: number, datos: DatosBorrador) {
-  const respuesta = await fetch(`/api/ordenes-compra/${idOrden}/borrador`, {
-    method: 'PUT',
+  const respuesta = await fetch(`/api/ordenes-compra/${idOrden}`, {
+    method: 'PATCH',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(datos)

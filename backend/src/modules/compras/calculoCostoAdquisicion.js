@@ -17,19 +17,8 @@ function aSoles(centimos) {
   return `${soles}.${decimales}`;
 }
 
-// Los costos y la tasa se reciben como texto decimal, tal como salen de PostgreSQL.
-// Un costo null indica que el par modelo y talla aún no tiene un costo registrado.
-export function calcularCostoAdquisicion(lineas, tasaIgv) {
-  if (typeof tasaIgv !== 'string' || !/^\d+(?:\.\d{1,4})?$/.test(tasaIgv)) {
-    throw new RangeError('La tasa de IGV debe tener hasta cuatro decimales.');
-  }
-
-  const [entero, decimales = ''] = tasaIgv.split('.');
-  const tasaEscalada = BigInt(entero) * 10_000n + BigInt(decimales.padEnd(4, '0'));
-  if (tasaEscalada > 10_000n) {
-    throw new RangeError('La tasa de IGV debe expresarse como una fracción entre 0 y 1.');
-  }
-
+// Costos finales del proveedor; no se agrega un recargo tributario.
+export function calcularCostoAdquisicion(lineas) {
   let subtotalConocido = 0n;
   let faltaCosto = false;
   const lineasCalculadas = lineas.map((linea) => {
@@ -46,12 +35,9 @@ export function calcularCostoAdquisicion(lineas, tasaIgv) {
     return { ...linea, importe: aSoles(importe) };
   });
 
-  // El IGV se aplica al subtotal y se redondea al centavo más próximo.
-  const igv = (subtotalConocido * tasaEscalada + 5_000n) / 10_000n;
   return {
     lineas: lineasCalculadas,
     subtotalConocido: aSoles(subtotalConocido),
-    igv: faltaCosto ? null : aSoles(igv),
-    total: faltaCosto ? null : aSoles(subtotalConocido + igv)
+    total: faltaCosto ? null : aSoles(subtotalConocido)
   };
 }

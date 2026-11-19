@@ -3,17 +3,7 @@ import { consultarCostosVigentesPorSku } from './costoAdquisicion.repository.js'
 
 const ID_SKU_MAXIMO = 2_147_483_647;
 
-export function obtenerTasaIgv() {
-  const tasaIgv = process.env.IGV_TASA?.trim() ?? '';
-  if (!/^(?:0(?:\.\d{1,4})?|1(?:\.0{1,4})?)$/.test(tasaIgv)) {
-    const error = new Error('Configura IGV_TASA en el backend como una fracción entre 0 y 1 con hasta cuatro decimales.');
-    error.status = 503;
-    throw error;
-  }
-  return tasaIgv;
-}
-
-export async function resumirCostoAdquisicion(conexion, lineas, tasaIgv) {
+export async function resumirCostoAdquisicion(conexion, lineas) {
   if (!Array.isArray(lineas)) {
     throw new TypeError('Las líneas del borrador deben enviarse en una lista.');
   }
@@ -36,5 +26,5 @@ export async function resumirCostoAdquisicion(conexion, lineas, tasaIgv) {
     return { idSku, cantidad, costoUnitario: costoPorSku.get(idSku) };
   });
 
-  return calcularCostoAdquisicion(lineasConCosto, tasaIgv);
+  return calcularCostoAdquisicion(lineasConCosto);
 }

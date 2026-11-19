@@ -24,7 +24,7 @@ export async function crearBorradorController(req, res) {
 
 export async function listarBorradoresController(req, res) {
   try {
-    const borradores = await obtenerBorradores();
+    const borradores = await obtenerBorradores(req.query.estado);
     return res.status(200).json({ borradores });
   } catch (error) {
     return responderError(res, error, 'listar');
@@ -42,7 +42,10 @@ export async function consultarOrdenCompraController(req, res) {
 
 export async function guardarBorradorController(req, res) {
   try {
-    const { id_proveedor, observacion } = req.body ?? {};
+    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
+      return res.status(400).json({ mensaje: 'Envía un objeto JSON con los datos del borrador.' });
+    }
+    const { id_proveedor, observacion } = req.body;
     const orden = await actualizarBorrador(req.params.id, id_proveedor, observacion);
     return res.status(200).json({ mensaje: 'Borrador guardado correctamente.', orden });
   } catch (error) {

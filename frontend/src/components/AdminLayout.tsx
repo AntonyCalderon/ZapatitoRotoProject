@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import OperacionLayout from './OperacionLayout'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { cerrarSesion } from '../services/authApi'
 import { useAuthStore } from '../store/authStore'
@@ -50,7 +51,7 @@ export default function AdminLayout() {
   const [errorSalida, setErrorSalida] = useState('')
 
   // El inicio de otros roles conserva su pantalla sin menú administrativo.
-  if (!usuario?.roles.includes('Administrador')) return <Outlet />
+  if (!usuario?.roles.includes('Administrador') || /^\/(compras|ventas|almacen)(\/|$)/.test(pathname)) return <OperacionLayout />
 
   const cerrar = async () => {
     setCerrandoSesion(true)

@@ -11,7 +11,7 @@ export function validarOrigenes(origenes = []) {
   return origenes.map(({ tipo, referencia }) => ({ tipo, referencia: referencia.trim() || null }));
 }
 
-export function prepararRevision(proveedor, lineas, minimo, tasaIgv = '0') {
+export function prepararRevision(proveedor, lineas, minimo) {
   const avisos = [];
   const pares = lineas.reduce((suma, linea) => suma + linea.cantidad, 0);
   if (!proveedor?.razon_social?.trim() || !proveedor.ruc?.trim() || !proveedor.direccion?.trim())
@@ -26,11 +26,11 @@ export function prepararRevision(proveedor, lineas, minimo, tasaIgv = '0') {
     else if (Number(linea.costo) >= 100000000) avisos.push(`El costo de ${linea.codigo_sku} supera el máximo por par.`);
   }
   const costos = avisos.length ? null : calcularCostoAdquisicion(
-    lineas.map(l => ({ cantidad: l.cantidad, costoUnitario: l.costo })), tasaIgv);
+    lineas.map(l => ({ cantidad: l.cantidad, costoUnitario: l.costo })));
   if (costos && Number(costos.total) >= 1e10) avisos.push('El importe supera el máximo de la orden.');
-  const revision = { proveedor, pares, minimo, tasaIgv, avisos,
+  const revision = { proveedor, pares, minimo, avisos,
     lineas: lineas.map((l,i) => ({ ...l, importe: costos?.lineas[i].importe ?? null })),
-    subtotal: costos?.subtotalConocido ?? null, igv: costos?.igv ?? null,
+    subtotal: costos?.subtotalConocido ?? null,
     total: avisos.length ? null : costos.total };
   const version = createHash('sha256').update(JSON.stringify(revision)).digest('hex');
   return { ...revision, version };

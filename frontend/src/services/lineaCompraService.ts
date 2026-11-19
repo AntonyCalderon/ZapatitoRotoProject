@@ -58,19 +58,41 @@ export async function obtenerTallasCompra(idModelo: number, idColor: number): Pr
 
 // Líneas ya guardadas en el borrador.
 export async function obtenerLineasBorrador(idOrden: number): Promise<LineasBorrador> {
-  const respuesta = await fetch(`${API_URL}/ordenes/${idOrden}/lineas`, { credentials: 'include' })
+  const respuesta = await fetch(`/api/ordenes-compra/${idOrden}/detalles`, { credentials: 'include' })
   return procesarRespuesta<LineasBorrador>(respuesta)
 }
 
-// Guardado manual: reemplaza todas las líneas del borrador.
+// Agrega solo las líneas nuevas, en una única transacción.
 export async function guardarLineasBorrador(idOrden: number, lineas: LineaPedida[]) {
-  const respuesta = await fetch(`${API_URL}/ordenes/${idOrden}/lineas`, {
-    method: 'PUT',
+  const respuesta = await fetch(`/api/ordenes-compra/${idOrden}/detalles`, {
+    method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ lineas })
   })
   return procesarRespuesta<LineasBorrador & { mensaje: string }>(respuesta)
+}
+
+export interface VarianteCompra {
+  id_sku: number
+  codigo_sku: string
+  id_modelo: number
+  nombre_modelo: string
+  id_color: number
+  nombre_color: string
+  id_talla: number
+  numero_talla: string
+  costo_base_vigente: string | null
+}
+export interface CatalogoCompra {
+  modelos: ModeloCompra[]
+  colores: ColorCompra[]
+  tallas: {id_talla: number; numero_talla: string}[]
+  variantes: VarianteCompra[]
+}
+export async function obtenerCatalogoCompra(): Promise<CatalogoCompra> {
+  const respuesta = await fetch(API_URL + '/catalogo', {credentials:'include'})
+  return procesarRespuesta<CatalogoCompra>(respuesta)
 }
 
 export async function calcularResumenCostos(idOrden: number, lineas: LineaPedida[], signal: AbortSignal) {
