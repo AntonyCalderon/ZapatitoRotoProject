@@ -17,6 +17,7 @@ import AdminInicio from './pages/AdminInicio'
 import CambiarPasswordPage from './pages/CambiarPasswordPage'
 import UsuariosPage from './pages/UsuariosPage'
 import ComprasBorradoresPage from './pages/ComprasBorradoresPage'
+import SeleccionCompraPage from './pages/SeleccionCompraPage'
 
 export function InicioRoute() {
   const esAdministrador = useAuthStore((state) => state.user?.roles.includes('Administrador') ?? false)
@@ -39,6 +40,11 @@ function App() {
           <Route element={<AdminLayout />}>
             {/* Inicio específico para Administrador y para los demás roles. */}
             <Route path="/inicio" element={<InicioRoute />} />
+
+            {/* HU02: productos y tallas dentro de un borrador, solo rol Compras. */}
+            <Route element={<ComprasRoute />}>
+              <Route path="/compras/borrador/:idOrden/productos" element={<SeleccionCompraPage />} />
+            </Route>
 
             {/* Funcionalidades exclusivas del Administrador. */}
             <Route element={<AdminRoute />}>
