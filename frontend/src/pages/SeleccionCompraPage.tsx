@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import CuadriculaTallas from '../components/CuadriculaTallas'
 import ResumenCostoAdquisicion from '../components/ResumenCostoAdquisicion'
@@ -36,6 +36,7 @@ y guarda las líneas. Ruta: /compras/borrador/:idOrden/productos
 export default function SeleccionCompraPage() {
   const idOrden = Number(useParams().idOrden)
   const idValido = Number.isSafeInteger(idOrden) && idOrden > 0
+  const clienteConsultas = useQueryClient()
 
   const [modelos, setModelos] = useState<ModeloCompra[]>([])
   const [colores, setColores] = useState<ColorCompra[]>([])
@@ -55,8 +56,9 @@ export default function SeleccionCompraPage() {
   const haySinGuardar = !lineasIguales(lineas, guardadas)
   const lineasPedidas = lineas.map(({ id_sku, cantidad }) => ({ id_sku, cantidad }))
   const mostrarResumen = idValido && editable && !cargando && lineasPedidas.length > 0
+  const claveResumen = ['resumen-costos-borrador', idOrden]
   const resumenCostos = useQuery({
-    queryKey: ['resumen-costos-borrador', idOrden, lineasPedidas],
+    queryKey: [...claveResumen, lineasPedidas],
     queryFn: ({ signal }) => calcularResumenCostos(idOrden, lineasPedidas, signal),
     enabled: mostrarResumen,
     gcTime: 0,
@@ -175,6 +177,7 @@ export default function SeleccionCompraPage() {
       setLineas(resultado.lineas)
       setGuardadas(resultado.lineas)
       setMensaje(`${resultado.mensaje} ${resultado.total_pares} pares en ${resultado.lineas.length} líneas.`)
+      void clienteConsultas.invalidateQueries({ queryKey: claveResumen })
     } catch (err) {
       setError(mensajeDe(err, 'No se pudieron guardar las líneas.'))
     } finally {

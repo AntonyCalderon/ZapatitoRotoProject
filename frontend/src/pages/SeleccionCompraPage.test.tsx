@@ -20,9 +20,10 @@ interface Opciones {
   estado?: string
   lineasGuardadas?: ReturnType<typeof detalle>[]
   fallaAlGuardar?: boolean
+  costoAlGuardar?: number
 }
 
-function simularApi({ estado = 'Borrador', lineasGuardadas = [], fallaAlGuardar = false }: Opciones = {}) {
+function simularApi({ estado = 'Borrador', lineasGuardadas = [], fallaAlGuardar = false, costoAlGuardar }: Opciones = {}) {
   const costos = new Map([[1, 180]])
 
   return vi.fn(async (entrada: RequestInfo | URL, opciones?: RequestInit) => {
@@ -45,6 +46,7 @@ function simularApi({ estado = 'Borrador', lineasGuardadas = [], fallaAlGuardar 
     }
     if (ruta === '/api/lineas-compra/ordenes/7/lineas' && opciones?.method === 'PUT') {
       if (fallaAlGuardar) return respuesta({ mensaje: 'La orden ya no es un borrador.' }, 409)
+      if (costoAlGuardar !== undefined) costos.set(1, costoAlGuardar)
       const { lineas } = JSON.parse(String(opciones.body)) as { lineas: LineaPedida[] }
       const guardadas = lineas.map((l) => detalle(l.id_sku, l.id_sku === 1 ? '40.0' : '41.0', l.cantidad))
       return respuesta({ mensaje: 'Líneas guardadas correctamente.', lineas: guardadas, total_pares: guardadas.reduce((s, l) => s + l.cantidad, 0), pares_por_modelo: [] })
@@ -166,6 +168,19 @@ describe('Selección de modelos y tallas dentro de un borrador', () => {
     expect(await screen.findByText(/Líneas guardadas correctamente.*16 pares en 2 líneas/)).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/lineas-compra/ordenes/7/lineas', expect.objectContaining({ method: 'PUT', credentials: 'include' }))
     await waitFor(() => expect(screen.queryByText('Tienes cambios sin guardar.')).not.toBeInTheDocument())
+  })
+
+  it('consulta el costo vigente otra vez al guardar líneas ya calculadas', async () => {
+    vi.stubGlobal('fetch', simularApi({ costoAlGuardar: 200 }))
+    mostrarPagina()
+    await elegirModeloYColor()
+
+    fireEvent.change(screen.getByLabelText('Talla 40'), { target: { value: '12' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar a la solicitud' }))
+    expect(await screen.findByText('S/ 2548.80')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar líneas' }))
+    expect(await screen.findByText('S/ 2832.00')).toBeInTheDocument()
   })
 
   it('recalcula el borrador al agregar pares y registrar el costo faltante', async () => {

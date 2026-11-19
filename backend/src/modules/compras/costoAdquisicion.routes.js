@@ -5,7 +5,7 @@ import { registrarCostoBase } from '../costos-base/costoBase.service.js';
 import { consolidarLineas, validarEntero } from '../lineas-compra/lineaCompra.domain.js';
 import { buscarOrdenCompraPorId } from '../ordenes-compra/ordenCompra.repository.js';
 import { buscarProductoSkuPorId } from '../productos-sku/productoSku.repository.js';
-import { resumirCostoAdquisicion } from './costoAdquisicion.service.js';
+import { obtenerTasaIgv, resumirCostoAdquisicion } from './costoAdquisicion.service.js';
 
 const router = Router();
 
@@ -25,20 +25,18 @@ router.post('/ordenes/:idOrden/resumen-costos', requerirAutenticacion, autorizar
       return res.status(409).json({ mensaje: 'Solo se pueden recalcular los costos de un borrador.' });
     }
 
-    const tasaIgv = process.env.IGV_TASA?.trim() ?? '';
-    if (!/^(?:0(?:\.\d{1,4})?|1(?:\.0{1,4})?)$/.test(tasaIgv)) {
-      return res.status(503).json({ mensaje: 'Configura IGV_TASA en el backend como una fracción entre 0 y 1 con hasta cuatro decimales.' });
-    }
-
     // Las cantidades pueden incluir cambios que todavía no se han guardado.
     const resumen = await resumirCostoAdquisicion(
       pool,
       lineas.map(({ id_sku, cantidad }) => ({ idSku: id_sku, cantidad })),
-      tasaIgv
+      obtenerTasaIgv()
     );
     return res.json(resumen);
   } catch (error) {
-    if (error.status === 400 || error instanceof RangeError) {
+    if (error.status === 400 || error.status === 503) {
+      return res.status(error.status).json({ mensaje: error.message });
+    }
+    if (error instanceof RangeError) {
       return res.status(400).json({ mensaje: error.message });
     }
     console.error('Error al calcular el costo de adquisición:', error.message);
