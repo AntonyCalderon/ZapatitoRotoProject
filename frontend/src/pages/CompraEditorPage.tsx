@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router-dom'
-import { consultarOrdenCompra, guardarBorrador, type OrdenCompra } from '../services/ordenCompraService'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { confirmarEmision, revisarEmision, obtenerProveedores, type OrigenCompra, consultarOrdenCompra, guardarBorrador, type OrdenCompra } from '../services/ordenCompraService'
 import { calcularResumenCostos, obtenerLineasBorrador, guardarCambiosLineas } from '../services/lineaCompraService'
 import { agregarLineas, formatearTalla, lineasIguales, totalPares, type LineaSolicitud } from '../utils/lineasCompra'
 import { useAuthStore } from '../store/authStore'
@@ -12,6 +12,16 @@ import CampoCostoFaltante from '../components/CampoCostoFaltante'
 
 export default function CompraEditorPage() {
   const id = Number(useParams().idOrden)
+  const navigate = useNavigate()
+  const [proveedor, setProveedor] = useState<number | null>(null)
+  const [proveedores, setProveedores] = useState<Awaited<ReturnType<typeof obtenerProveedores>>>([])
+  const [origenes, setOrigenes] = useState<OrigenCompra[]>([])
+  useEffect(() => {
+    let activo = true
+    obtenerProveedores().then(items => { if (activo) setProveedores(items) })
+      .catch(e => { if (activo) setError(e.message) })
+    return () => { activo = false }
+  }, [])
   const valido = Number.isSafeInteger(id) && id > 0 && id <= 2147483647
   const user = useAuthStore(s => s.user)
   const setDirty = useCambiosOperacion()
@@ -30,7 +40,8 @@ export default function CompraEditorPage() {
   const [intento, setIntento] = useState(0)
   const lineasPendientes = !lineasIguales(lineas, guardadas)
   const notasPendientes = orden !== null && observacion !== (orden.observacion ?? '')
-  const dirty = lineasPendientes || notasPendientes
+  const proveedorPendiente = orden !== null && proveedor !== orden.id_proveedor
+  const dirty = lineasPendientes || notasPendientes || proveedorPendiente
   const editable = orden?.estado === 'BORRADOR'
   const cantidadesValidas = lineas.every(l => Number.isInteger(l.cantidad) && l.cantidad > 0 && l.cantidad <= 100000)
   const lineasPedidas = lineas.map(({ id_sku, cantidad }) => ({ id_sku, cantidad }))
@@ -54,7 +65,7 @@ export default function CompraEditorPage() {
     if (!valido) { setError('El identificador del borrador no es válido.'); setCargando(false); return }
     Promise.all([consultarOrdenCompra(id), obtenerLineasBorrador(id)]).then(([datos, detalle]) => {
       if (!activo) return
-      setOrden(datos.orden); setObservacion(datos.orden.observacion ?? ''); setLineas(detalle.lineas); setGuardadas(detalle.lineas)
+      setOrigenes([]); setProveedor(datos.orden.id_proveedor); setOrden(datos.orden); setObservacion(datos.orden.observacion ?? ''); setLineas(detalle.lineas); setGuardadas(detalle.lineas)
     }).catch(e => { if (activo) setError(e instanceof Error ? e.message : 'No se pudo abrir el borrador.') }).finally(() => { if (activo) setCargando(false) })
     return () => { activo = false }
   }, [id, valido, intento])
@@ -96,8 +107,8 @@ export default function CompraEditorPage() {
       lineasCompletadas = true
       setLineas(resultado); setGuardadas(resultado); setCantidadesEditadas({})
       void clienteConsultas.invalidateQueries({ queryKey: claveResumen })
-      if (notasPendientes) {
-        const datos = await guardarBorrador(id, { observacion: observacion.trim() })
+      if (notasPendientes || proveedorPendiente) {
+        const datos = await guardarBorrador(id, { ...(notasPendientes && { observacion: observacion.trim() }), ...(proveedorPendiente && { id_proveedor: proveedor }) })
         setOrden({ ...orden, ...datos.orden }); setObservacion(datos.orden.observacion ?? '')
       }
       setEditando(false)
@@ -108,6 +119,29 @@ export default function CompraEditorPage() {
       setError(productosGuardados ? lineasCompletadas ? `Los productos se guardaron. Las observaciones siguen pendientes: ${detalle}` : `Algunos cambios de productos se guardaron; los pendientes se conservaron. ${detalle}` : detalle)
     } finally { setOcupado(false) }
   }
+  const emitir = async () => {
+    if (!orden || ocupado) return
+    setMensaje('')
+    setError('')
+    if (dirty) { setError('Guarda los cambios antes de emitir.'); return }
+    setOcupado(true)
+    try {
+      const id = orden.id_orden_compra
+      const revision = await revisarEmision(id)
+      if (revision.avisos.length) { setError(revision.avisos.join(' ')); return }
+      const cambios = revision.lineas.filter(l => l.anterior !== null && l.anterior !== l.costo)
+        .map(l => l.codigo_sku + ': S/ ' + l.anterior + ' → S/ ' + l.costo)
+      const resumen = [revision.proveedor?.razon_social, revision.pares + ' pares',
+        'Subtotal S/ ' + revision.subtotal, 'IGV S/ ' + revision.igv, 'Total S/ ' + revision.total,
+        ...cambios, '¿Confirmas la emisión de la orden?'].join('\n')
+      if (!window.confirm(resumen)) return
+      await confirmarEmision(id, revision.version, origenes)
+      navigate('/compras')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo emitir la orden.')
+    } finally { setOcupado(false) }
+  }
+
   return <>
     <div className="ops-page-heading"><div><p className="ops-eyebrow">SOLICITUDES DE COMPRA</p><h1>Borrador de compra {orden && <span className="ops-heading-id">#{id}</span>}</h1><p>Organiza los productos y cantidades de tu solicitud.</p></div><Link className="ops-btn" to="/compras" onClick={confirmarSalida}>Volver a solicitudes</Link></div>
     {error && <div className="ops-alert ops-alert-error" role="alert">{error} {!orden && <button className="ops-text-button" onClick={() => setIntento(n => n + 1)}>Reintentar</button>}</div>}
@@ -117,6 +151,30 @@ export default function CompraEditorPage() {
         <div className="ops-card-heading"><div className="ops-section-title"><span className="ops-section-icon"><OpIcon name="documento" /></span><div><h2>Datos de la solicitud</h2><p>Identificador interno #{id}</p></div></div><EstadoCompra estado={orden.estado} /></div>
         <dl className="ops-order-meta"><div><dt>Creado por</dt><dd>{orden.creador || (orden.id_usuario_creador === user?.id_usuario ? user.nombre : `Usuario #${orden.id_usuario_creador}`)}</dd></div><div><dt>Fecha de creación</dt><dd>{fechaCompra(orden.fecha_creacion)}</dd></div><div><dt>Proveedor</dt><dd>{orden.proveedor || (orden.id_proveedor ? `Proveedor #${orden.id_proveedor}` : <span className="ops-muted">Por definir</span>)}</dd></div><div><dt>Código oficial</dt><dd>{orden.codigo || <span className="ops-muted">Pendiente de emisión</span>}</dd></div></dl>
       </section>
+      {editable && <section className="ops-card ops-emission-card">
+        <div className="ops-emission-main"><label className="ops-field">Proveedor de la orden
+          <select value={proveedor ?? ''} disabled={ocupado} onChange={e => setProveedor(e.target.value ? Number(e.target.value) : null)}>
+            <option value="">Seleccionar proveedor</option>
+            {proveedores.map(p => <option key={p.id_proveedor} value={p.id_proveedor}>{p.razon_social}</option>)}
+          </select>
+        </label><button className="ops-btn ops-btn-primary" disabled={ocupado} onClick={() => void emitir()}>Revisar y emitir orden</button></div>
+            <fieldset disabled={ocupado} className="ops-emission-references">
+              <legend className="ops-emission-legend">Referencias internas · opcional</legend>
+              {origenes.map((origen, i) => <div key={i} className="ops-emission-reference">
+                <select aria-label={'Tipo de origen ' + (i + 1)} value={origen.tipo}
+                  onChange={e => setOrigenes(origenes.map((o,j) => j === i ? { ...o, tipo:e.target.value } : o))}>
+                  {['Pedido','Contrato','Licitacion','Reposicion'].map(t => <option key={t}>{t}</option>)}
+                </select>
+                <input aria-label={'Referencia ' + (i + 1)} placeholder="Referencia" maxLength={80}
+                  value={origen.referencia}
+                  onChange={e => setOrigenes(origenes.map((o,j) => j === i ? { ...o, referencia:e.target.value } : o))}/>
+                <button type="button" className="ops-text-button" onClick={() => setOrigenes(origenes.filter((_,j) => j !== i))}>Quitar</button>
+              </div>)}
+              <button type="button" className="ops-text-button"
+                onClick={() => setOrigenes([...origenes,{tipo:'Pedido',referencia:''}])}>Añadir referencia</button>
+            </fieldset>
+
+      </section>}
       <section className="ops-card ops-editor-card">
         <div className="ops-card-heading"><div><h2>Detalle de productos <span className="ops-count">{lineas.length}</span></h2><p>Modelo, color y cantidad de pares por talla.</p></div>{editable && <div className="ops-draft-actions"><button className="ops-btn" disabled={ocupado || editando && !cantidadesValidas} aria-pressed={editando} onClick={() => setEditando(valor => !valor)}>{editando ? 'Finalizar edición' : 'Modificar borrador'}</button><button className="ops-btn ops-btn-accent" disabled={ocupado || !cantidadesValidas} onClick={() => setDialog(true)}><OpIcon name="mas" />Agregar productos</button></div>}</div>
         <div className="ops-table-scroll"><table className="ops-table ops-product-table"><thead><tr><th>Modelo</th><th>Color</th><th>Talla</th><th className="ops-number">Cantidad</th><th className="ops-number">Costo unitario</th><th className="ops-number">Subtotal</th><th className="ops-center">Acciones</th></tr></thead><tbody>

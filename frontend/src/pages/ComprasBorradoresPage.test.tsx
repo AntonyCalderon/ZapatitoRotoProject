@@ -7,6 +7,7 @@ const orden={id_orden_compra:19,estado:'BORRADOR',id_proveedor:null,id_usuario_c
 const respuesta=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}})
 function mostrar(cancelacion:()=>Promise<Response>=async()=>respuesta({mensaje:'Borrador #19 cancelado correctamente.',orden:{id_orden_compra:19,estado:'CANCELADO'}})){
   const peticion=vi.fn(async(url:RequestInfo|URL,init?:RequestInit)=>{
+    if(String(url)==='/api/ordenes-compra/emitidas')return respuesta([])
     if(String(url)==='/api/ordenes-compra?estado=BORRADOR')return respuesta({borradores:[orden,{...orden,id_orden_compra:18}]})
     if(String(url)==='/api/ordenes-compra/19/cancelacion'&&init?.method==='POST')return cancelacion()
     throw new Error('Petición inesperada: '+url)
@@ -21,7 +22,7 @@ it('pide confirmación con el número y no llama a la API si el usuario desiste'
   const peticion=mostrar()
   fireEvent.click(await screen.findByRole('button',{name:'Cancelar borrador 19'}))
   expect(confirmar).toHaveBeenCalledWith(expect.stringContaining('#19'))
-  expect(peticion).toHaveBeenCalledTimes(1)
+  expect(peticion.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(0)
   expect(screen.getByRole('link',{name:'Abrir borrador 19'})).toBeInTheDocument()
 })
 it('cancela mediante POST, retira solo la fila confirmada y muestra el mensaje',async()=>{

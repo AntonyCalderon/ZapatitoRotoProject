@@ -13,6 +13,7 @@ function mostrar({fallaSegunda=false,estado='BORRADOR'}={}){
   let lineas=originales.map(l=>({...l})),fallo=fallaSegunda
   const peticion=vi.fn(async(url:RequestInfo|URL,init?:RequestInit)=>{
     const path=String(url)
+    if (path === '/api/ordenes-compra/proveedores') return json([])
     if(path==='/api/ordenes-compra/7')return json({orden:{id_orden_compra:7,estado,id_usuario_creador:1,creador:'Paolo',fecha_creacion:'2026-11-19T18:00:00Z',observacion:null,id_proveedor:null,total:null}})
     if(path==='/api/ordenes-compra/7/detalles')return json({estado,lineas})
     if(path.startsWith('/api/ordenes-compra/7/detalles/')){

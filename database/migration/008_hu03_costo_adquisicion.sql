@@ -1,14 +1,18 @@
 BEGIN;
 
-CREATE TABLE parametro_sistema (
+CREATE TABLE IF NOT EXISTS parametro_sistema (
     clave VARCHAR(50) PRIMARY KEY,
-    valor NUMERIC NOT NULL,
-    CONSTRAINT ck_parametro_tasa_igv CHECK (
-        clave <> 'IGV_TASA' OR (valor BETWEEN 0 AND 1 AND valor = round(valor, 4))
-    )
+    valor NUMERIC NOT NULL
 );
 
-INSERT INTO parametro_sistema (clave, valor) VALUES ('IGV_TASA', 0.18);
+-- Admite instalaciones previas de emision que guardaban el parametro como texto.
+ALTER TABLE parametro_sistema ALTER COLUMN valor TYPE NUMERIC USING valor::numeric;
+ALTER TABLE parametro_sistema ADD
+    CONSTRAINT ck_parametro_tasa_igv CHECK (
+        clave <> 'IGV_TASA' OR (valor BETWEEN 0 AND 1 AND valor = round(valor, 4))
+    );
+
+INSERT INTO parametro_sistema (clave, valor) VALUES ('IGV_TASA', 0.18) ON CONFLICT (clave) DO NOTHING;
 
 ALTER TABLE detalle_orden_compra
     ALTER COLUMN costo_unitario TYPE NUMERIC(12,2),

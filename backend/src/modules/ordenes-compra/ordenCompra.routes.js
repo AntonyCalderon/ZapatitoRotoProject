@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import emisionRoutes from './emision.routes.js';
 import {
   crearBorradorController,
   listarBorradoresController,
@@ -14,6 +15,7 @@ const router = Router();
 
 // RN-02: solo el Encargado de Compras crea, consulta y guarda borradores.
 router.use(requerirAutenticacion, autorizarRoles('Compras'));
+router.use(emisionRoutes);
 router.post('/', crearBorradorController);
 router.post('/:id/cancelacion', cancelarBorradorController);
 router.post('/:id/detalles', agregarDetallesController);

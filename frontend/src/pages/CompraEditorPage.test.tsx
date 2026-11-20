@@ -17,6 +17,8 @@ function api({ falloNotas = false, falloCarga = false, costoInicial = 200 }: { f
   let costo = costoInicial
   return vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
     const path = String(url)
+    if (path === '/api/ordenes-compra/proveedores') return json([])
+    if (path === '/api/ordenes-compra/emitidas') return json([])
     if (path === '/api/ordenes-compra?estado=BORRADOR') return json({ borradores: [actual] })
     if (path === '/api/ordenes-compra' && init?.method === 'POST') return json({ orden: actual }, 201)
     if (path === '/api/ordenes-compra/7' && init?.method === 'PATCH') {
