@@ -151,29 +151,29 @@ export default function CompraEditorPage() {
         <div className="ops-card-heading"><div className="ops-section-title"><span className="ops-section-icon"><OpIcon name="documento" /></span><div><h2>Datos de la solicitud</h2><p>Identificador interno #{id}</p></div></div><EstadoCompra estado={orden.estado} /></div>
         <dl className="ops-order-meta"><div><dt>Creado por</dt><dd>{orden.creador || (orden.id_usuario_creador === user?.id_usuario ? user.nombre : `Usuario #${orden.id_usuario_creador}`)}</dd></div><div><dt>Fecha de creación</dt><dd>{fechaCompra(orden.fecha_creacion)}</dd></div><div><dt>Proveedor</dt><dd>{orden.proveedor || (orden.id_proveedor ? `Proveedor #${orden.id_proveedor}` : <span className="ops-muted">Por definir</span>)}</dd></div><div><dt>Código oficial</dt><dd>{orden.codigo || <span className="ops-muted">Pendiente de emisión</span>}</dd></div></dl>
       </section>
-      {editable && <section className="ops-card ops-editor-card">
-        <label className="ops-field">Proveedor de la orden
+      {editable && <section className="ops-card ops-emission-card">
+        <div className="ops-emission-main"><label className="ops-field">Proveedor de la orden
           <select value={proveedor ?? ''} disabled={ocupado} onChange={e => setProveedor(e.target.value ? Number(e.target.value) : null)}>
             <option value="">Seleccionar proveedor</option>
             {proveedores.map(p => <option key={p.id_proveedor} value={p.id_proveedor}>{p.razon_social}</option>)}
           </select>
-        </label>
-            <fieldset disabled={ocupado} className="mt-4 space-y-2">
-              <legend className="text-sm font-semibold">Referencias internas para la emisión</legend>
-              {origenes.map((origen, i) => <div key={i} className="flex flex-wrap gap-2">
+        </label><button className="ops-btn ops-btn-primary" disabled={ocupado} onClick={() => void emitir()}>Revisar y emitir orden</button></div>
+            <fieldset disabled={ocupado} className="ops-emission-references">
+              <legend className="ops-emission-legend">Referencias internas · opcional</legend>
+              {origenes.map((origen, i) => <div key={i} className="ops-emission-reference">
                 <select aria-label={'Tipo de origen ' + (i + 1)} value={origen.tipo}
                   onChange={e => setOrigenes(origenes.map((o,j) => j === i ? { ...o, tipo:e.target.value } : o))}>
                   {['Pedido','Contrato','Licitacion','Reposicion'].map(t => <option key={t}>{t}</option>)}
                 </select>
                 <input aria-label={'Referencia ' + (i + 1)} placeholder="Referencia" maxLength={80}
-                  className="rounded border px-2" value={origen.referencia}
+                  value={origen.referencia}
                   onChange={e => setOrigenes(origenes.map((o,j) => j === i ? { ...o, referencia:e.target.value } : o))}/>
-                <button type="button" onClick={() => setOrigenes(origenes.filter((_,j) => j !== i))}>Quitar</button>
+                <button type="button" className="ops-text-button" onClick={() => setOrigenes(origenes.filter((_,j) => j !== i))}>Quitar</button>
               </div>)}
-              <button type="button" className="text-sm text-indigo-700 underline"
+              <button type="button" className="ops-text-button"
                 onClick={() => setOrigenes([...origenes,{tipo:'Pedido',referencia:''}])}>Añadir referencia</button>
             </fieldset>
-        <button className="ops-btn ops-btn-primary" disabled={ocupado} onClick={() => void emitir()}>Revisar y emitir orden</button>
+
       </section>}
       <section className="ops-card ops-editor-card">
         <div className="ops-card-heading"><div><h2>Detalle de productos <span className="ops-count">{lineas.length}</span></h2><p>Modelo, color y cantidad de pares por talla.</p></div>{editable && <div className="ops-draft-actions"><button className="ops-btn" disabled={ocupado || editando && !cantidadesValidas} aria-pressed={editando} onClick={() => setEditando(valor => !valor)}>{editando ? 'Finalizar edición' : 'Modificar borrador'}</button><button className="ops-btn ops-btn-accent" disabled={ocupado || !cantidadesValidas} onClick={() => setDialog(true)}><OpIcon name="mas" />Agregar productos</button></div>}</div>
