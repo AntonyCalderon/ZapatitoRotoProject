@@ -64,7 +64,8 @@ function simularApi({ estado = 'BORRADOR', lineasGuardadas = [], fallaAlGuardar 
       return respuesta({
         lineas: calculadas,
         subtotalConocido: subtotal.toFixed(2),
-        total: completo ? subtotal.toFixed(2) : null,
+        igv: completo ? (subtotal * 0.18).toFixed(2) : null,
+        total: completo ? (subtotal * 1.18).toFixed(2) : null,
       })
     }
     if (ruta === '/api/compras/costos-faltantes/3' && opciones?.method === 'POST') {
@@ -178,10 +179,10 @@ describe('Selección de modelos y tallas dentro de un borrador', () => {
 
     fireEvent.change(screen.getByLabelText('Talla 40'), { target: { value: '12' } })
     fireEvent.click(screen.getByRole('button', { name: 'Agregar a la solicitud' }))
-    await waitFor(() => expect(screen.getByText('Total de adquisición').nextElementSibling).toHaveTextContent('S/ 2160.00'))
+    await waitFor(() => expect(screen.getByText('Total de adquisición').nextElementSibling).toHaveTextContent('S/ 2548.80'))
 
     fireEvent.click(screen.getByRole('button', { name: 'Guardar líneas' }))
-    await waitFor(() => expect(screen.getByText('Total de adquisición').nextElementSibling).toHaveTextContent('S/ 2400.00'))
+    await waitFor(() => expect(screen.getByText('Total de adquisición').nextElementSibling).toHaveTextContent('S/ 2832.00'))
   })
 
   it('recalcula el borrador al agregar pares y registrar el costo faltante', async () => {
@@ -190,7 +191,7 @@ describe('Selección de modelos y tallas dentro de un borrador', () => {
     mostrarPagina()
 
     const resumen = await screen.findByRole('region', { name: 'Resumen de costos de adquisición' })
-    expect(within(resumen).getByText('Total de adquisición').nextElementSibling).toHaveTextContent('S/ 2160.00')
+    expect(within(resumen).getByText('Total de adquisición').nextElementSibling).toHaveTextContent('S/ 2548.80')
 
     await elegirModeloYColor()
     fireEvent.change(screen.getByLabelText('Talla 41'), { target: { value: '1' } })
@@ -201,7 +202,7 @@ describe('Selección de modelos y tallas dentro de un borrador', () => {
     fireEvent.change(costo, { target: { value: '190,00' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar costo' }))
 
-    await waitFor(() => expect(screen.getByText('Total de adquisición').nextElementSibling).toHaveTextContent('S/ 2350.00'))
+    await waitFor(() => expect(screen.getByText('Total de adquisición').nextElementSibling).toHaveTextContent('S/ 2773.00'))
     expect(screen.queryByText('Pendiente')).not.toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/compras/costos-faltantes/3', expect.objectContaining({
       method: 'POST',

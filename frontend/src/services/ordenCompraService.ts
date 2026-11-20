@@ -26,6 +26,7 @@ interface Revision {
   proveedor: { razon_social: string } | null
   pares: number
   total: string | null
+  igv: string | null
   subtotal: string | null
   version: string
   avisos: string[]
@@ -90,4 +91,14 @@ export async function guardarBorrador(idOrden: number, datos: DatosBorrador) {
     body: JSON.stringify(datos)
   })
   return procesarRespuesta<{ mensaje: string; orden: OrdenCompra }>(respuesta)
+}
+export async function cancelarBorrador(idOrden: number) {
+  const respuesta = await fetch(`/api/ordenes-compra/${idOrden}/cancelacion`, {
+    method: 'POST',
+    credentials: 'include'
+  })
+  return procesarRespuesta<{
+    mensaje: string
+    orden: { id_orden_compra: number; estado: 'CANCELADO'; id_usuario_cancela: number; fecha_cancelacion: string }
+  }>(respuesta)
 }

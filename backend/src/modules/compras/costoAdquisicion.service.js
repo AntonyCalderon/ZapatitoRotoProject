@@ -1,5 +1,5 @@
 import { calcularCostoAdquisicion } from './calculoCostoAdquisicion.js';
-import { consultarCostosVigentesPorSku } from './costoAdquisicion.repository.js';
+import { consultarCostosVigentesPorSku, consultarTasaIgv } from './costoAdquisicion.repository.js';
 
 const ID_SKU_MAXIMO = 2_147_483_647;
 
@@ -16,7 +16,13 @@ export async function resumirCostoAdquisicion(conexion, lineas) {
     return idSku;
   });
 
-  const costosVigentes = await consultarCostosVigentesPorSku(conexion, [...new Set(idsSku)]);
+  const [costosVigentes, tasaIgv] = await Promise.all([
+    consultarCostosVigentesPorSku(conexion, [...new Set(idsSku)]),
+    consultarTasaIgv(conexion)
+  ]);
+  if (tasaIgv === null) {
+    throw Object.assign(new Error('Falta configurar la tasa de IGV en parámetro del sistema.'), { status: 503 });
+  }
   const costoPorSku = new Map(costosVigentes.map((fila) => [fila.id_sku, fila.costo_unitario]));
 
   const lineasConCosto = lineas.map(({ idSku, cantidad }) => {
@@ -26,5 +32,5 @@ export async function resumirCostoAdquisicion(conexion, lineas) {
     return { idSku, cantidad, costoUnitario: costoPorSku.get(idSku) };
   });
 
-  return calcularCostoAdquisicion(lineasConCosto);
+  return calcularCostoAdquisicion(lineasConCosto, tasaIgv);
 }

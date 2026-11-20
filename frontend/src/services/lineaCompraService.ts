@@ -105,3 +105,43 @@ export async function calcularResumenCostos(idOrden: number, lineas: LineaPedida
   })
   return procesarRespuesta<DatosResumenCostoAdquisicion>(respuesta)
 }
+
+
+export async function modificarCantidadDetalle(idOrden: number, idDetalle: number, cantidad: number, cantidadAnterior: number) {
+  const respuesta = await fetch(`/api/ordenes-compra/${idOrden}/detalles/${idDetalle}`, {
+    method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cantidad, cantidad_anterior: cantidadAnterior })
+  })
+  return procesarRespuesta<LineasBorrador>(respuesta)
+}
+
+export async function quitarDetalle(idOrden: number, idDetalle: number) {
+  const respuesta = await fetch(`/api/ordenes-compra/${idOrden}/detalles/${idDetalle}`, {
+    method: 'DELETE', credentials: 'include'
+  })
+  return procesarRespuesta<LineasBorrador>(respuesta)
+}
+
+// Cada confirmación actualiza la base del siguiente intento. Si una operación
+// posterior falla, no se repiten las altas o cambios ya confirmados por la API.
+export async function guardarCambiosLineas(
+  idOrden: number, deseadas: LineaSolicitud[], guardadas: LineaSolicitud[],
+  confirmar: (lineas: LineaSolicitud[]) => void
+) {
+  const eliminadas = guardadas.filter(g => !deseadas.some(d => d.id_sku === g.id_sku))
+  const modificadas = deseadas.filter(d => guardadas.some(g => g.id_sku === d.id_sku && g.cantidad !== d.cantidad))
+  const nuevas = deseadas.filter(d => !guardadas.some(g => g.id_sku === d.id_sku))
+  const persistidas = [...eliminadas, ...modificadas.map(d => guardadas.find(g => g.id_sku === d.id_sku)!)]
+  if (persistidas.some(l => !Number.isInteger(l.id_detalle_compra) || l.id_detalle_compra! <= 0)) {
+    throw new Error('Falta el identificador de una línea guardada. Vuelve a abrir el borrador.')
+  }
+  let resultado = guardadas
+  const confirmarResultado = (datos: LineasBorrador) => { resultado = datos.lineas; confirmar(resultado) }
+  for (const linea of eliminadas) confirmarResultado(await quitarDetalle(idOrden, linea.id_detalle_compra!))
+  for (const linea of modificadas) {
+    const anterior = guardadas.find(g => g.id_sku === linea.id_sku)!
+    confirmarResultado(await modificarCantidadDetalle(idOrden, anterior.id_detalle_compra!, linea.cantidad, anterior.cantidad))
+  }
+  if (nuevas.length) confirmarResultado(await guardarLineasBorrador(idOrden, nuevas.map(({id_sku,cantidad}) => ({id_sku,cantidad}))))
+  return resultado
+}

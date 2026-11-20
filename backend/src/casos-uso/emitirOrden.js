@@ -1,3 +1,4 @@
+import { consultarTasaIgv } from '../modules/compras/costoAdquisicion.repository.js';
 import pool from '../config/database.js';
 import { prepararRevision, validarOrigenes } from '../modules/ordenes-compra/emision.domain.js';
 
@@ -19,7 +20,7 @@ async function revisar(db, id) {
      LEFT JOIN costo_base b ON b.id_modelo=p.id_modelo AND b.id_talla=p.id_talla
      WHERE d.id_orden_compra=$1 ORDER BY d.id_sku`, [id]);
   const { rows: [parametro] } = await db.query("SELECT valor FROM parametro_sistema WHERE clave='LOTE_MINIMO_PARES'");
-  return prepararRevision(proveedor ?? null, lineas, Number(parametro?.valor));
+  return prepararRevision(proveedor ?? null, lineas, Number(parametro?.valor), await consultarTasaIgv(db));
 }
 
 export async function procesarEmision(idOrden, idUsuario, confirmacion) {
@@ -53,7 +54,7 @@ export async function procesarEmision(idOrden, idUsuario, confirmacion) {
     await db.query(`UPDATE orden_compra SET estado='EMITIDA', codigo=$2, id_usuario_emisor=$3,
       fecha_emision=now(), subtotal=$6, total=$4, documento_emitido=$5
       WHERE id_orden_compra=$1`, [id, codigo, idUsuario, revision.total,
-      JSON.stringify({ proveedor: revision.proveedor, lineas: revision.lineas, pares: revision.pares }),
+      JSON.stringify({ proveedor: revision.proveedor, lineas: revision.lineas, pares: revision.pares, subtotal: revision.subtotal, igv: revision.igv, tasaIgv: revision.tasaIgv }),
       revision.subtotal]);
     await db.query('COMMIT');
     return { codigo };

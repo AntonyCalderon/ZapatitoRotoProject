@@ -13,17 +13,19 @@ test('consolida solo referencias válidas y admite reposición sin referencia', 
   assert.throws(() => validarOrigenes(null), {status:400});
 });
 
-test('12 pares con costos vigentes y sin recargos', () => {
-  const r = prepararRevision(proveedor, [producto], 12);
+test('12 pares con costos vigentes y con IGV', () => {
+  const r = prepararRevision(proveedor, [producto], 12, '0.18');
   assert.deepEqual(r.avisos, []);
-  assert.equal(r.total,'148.08');
-  assert.notEqual(r.version, prepararRevision(proveedor, [{ ...producto, costo:'13.00', importe:'156.00' }],12).version);
+  assert.equal(r.subtotal,'148.08');
+  assert.equal(r.igv,'26.65');
+  assert.equal(r.total,'174.73');
+  assert.notEqual(r.version, prepararRevision(proveedor, [{ ...producto, costo:'13.00', importe:'156.00' }],12,'0.18').version);
 });
 test('informa los requisitos pendientes y respeta el mínimo configurable', () => {
-  const r = prepararRevision(null, [{ ...producto, activo:false, costo:null, importe:null }], 13);
+  const r = prepararRevision(null, [{ ...producto, activo:false, costo:null, importe:null }], 13, '0.18');
   assert.equal(r.total,null);
   assert.equal(r.avisos.length,4);
-  assert.match(prepararRevision(proveedor, [],12).avisos.join(' '), /Agrega productos/);
+  assert.match(prepararRevision(proveedor, [],12,'0.18').avisos.join(' '), /Agrega productos/);
 });
 test('PDF multipágina conserva importes y excluye información interna', () => {
   const orden = {codigo:'OC-2026-001', fecha:'19/11/2026', total:'14808.00',

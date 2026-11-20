@@ -4,11 +4,12 @@ import {
   crearBorradorController,
   listarBorradoresController,
   consultarOrdenCompraController,
-  guardarBorradorController
+  guardarBorradorController,
+  cancelarBorradorController
 } from './ordenCompra.controller.js';
 import { requerirAutenticacion, autorizarRoles } from '../../middlewares/autorizarRoles.js';
 
-import { agregarDetallesController, consultarDetallesController } from '../lineas-compra/lineaCompra.controller.js';
+import { agregarDetallesController, consultarDetallesController, modificarCantidadDetalleController, quitarDetalleController } from '../lineas-compra/lineaCompra.controller.js';
 
 const router = Router();
 
@@ -16,11 +17,14 @@ const router = Router();
 router.use(requerirAutenticacion, autorizarRoles('Compras'));
 router.use(emisionRoutes);
 router.post('/', crearBorradorController);
+router.post('/:id/cancelacion', cancelarBorradorController);
 router.post('/:id/detalles', agregarDetallesController);
+router.patch('/:id/detalles/:detalleId', modificarCantidadDetalleController);
+router.delete('/:id/detalles/:detalleId', quitarDetalleController);
 router.get('/:id/detalles', consultarDetallesController);
 router.get('/', listarBorradoresController);
 router.get('/:id', consultarOrdenCompraController);
-// Se alinea el guardado ya existente; no habilita cancelar ni cambiar estados.
+// Guardado parcial de datos generales del borrador.
 router.patch('/:id', guardarBorradorController);
 
 export default router;

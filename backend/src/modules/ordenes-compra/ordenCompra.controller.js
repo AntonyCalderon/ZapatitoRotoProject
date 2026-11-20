@@ -2,7 +2,8 @@ import {
   registrarBorrador,
   obtenerBorradores,
   consultarOrdenCompra,
-  actualizarBorrador
+  actualizarBorrador,
+  cancelarBorrador
 } from './ordenCompra.service.js';
 
 function responderError(res, error, operacion) {
@@ -50,5 +51,14 @@ export async function guardarBorradorController(req, res) {
     return res.status(200).json({ mensaje: 'Borrador guardado correctamente.', orden });
   } catch (error) {
     return responderError(res, error, 'guardar');
+  }
+}
+
+export async function cancelarBorradorController(req, res) {
+  try {
+    const orden = await cancelarBorrador(req.params.id, req.session.idUsuario);
+    return res.status(200).json({ mensaje: `Borrador #${orden.id_orden_compra} cancelado correctamente.`, orden });
+  } catch (error) {
+    return responderError(res, error, 'cancelar');
   }
 }

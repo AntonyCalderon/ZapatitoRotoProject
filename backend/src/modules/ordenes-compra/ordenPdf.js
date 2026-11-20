@@ -15,6 +15,10 @@ export function pdfOrden({ codigo, fecha, total, documento_emitido }) {
     agregar(l.cantidad + ' pares x S/ ' + l.costo + ' = S/ ' + l.importe);
   }
   agregar('');
+  if (documento_emitido.igv != null) {
+    agregar('Subtotal: S/ ' + documento_emitido.subtotal);
+    agregar('IGV: S/ ' + documento_emitido.igv);
+  }
   agregar('Total: ' + pares + ' pares  |  S/ ' + total);
   const objetos = ['', '', '<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>'];
   const paginas = [];

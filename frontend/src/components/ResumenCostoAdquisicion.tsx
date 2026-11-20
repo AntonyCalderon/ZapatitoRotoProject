@@ -10,6 +10,7 @@ interface LineaCostoAdquisicion {
 export interface DatosResumenCostoAdquisicion {
   lineas: LineaCostoAdquisicion[]
   subtotalConocido: string
+  igv: string | null
   total: string | null
 }
 
@@ -19,7 +20,7 @@ interface ResumenCostoAdquisicionProps {
 }
 
 export default function ResumenCostoAdquisicion({ resumen, actualizarResumen }: ResumenCostoAdquisicionProps) {
-  const { lineas, subtotalConocido, total } = resumen
+  const { lineas, subtotalConocido, igv, total } = resumen
 
   return (
     <section aria-label="Resumen de costos de adquisición"
@@ -71,6 +72,10 @@ export default function ResumenCostoAdquisicion({ resumen, actualizarResumen }: 
               <div className="flex justify-between gap-3">
                 <dt>{total === null ? 'Subtotal conocido' : 'Subtotal'}</dt>
                 <dd>S/ {subtotalConocido}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt>IGV</dt>
+                <dd>{igv === null ? 'Por calcular' : `S/ ${igv}`}</dd>
               </div>
               <div className="flex justify-between gap-3 border-t border-slate-200 pt-2 font-semibold">
                 <dt>Total de adquisición</dt>

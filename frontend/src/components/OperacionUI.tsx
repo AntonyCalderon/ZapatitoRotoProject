@@ -20,4 +20,6 @@ export function EstadoCompra({ estado }: { estado: string }) {
   return <span className={`ops-badge ${estado === 'BORRADOR' ? 'ops-badge-draft' : ''}`}>{estado === 'BORRADOR' ? 'Borrador' : estado === 'EMITIDA' ? 'Emitida' : 'Cancelado'}</span>
 }
 export const fechaCompra = (valor: string) => new Date(valor).toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' })
-export const soles = (valor: string | number | null | undefined) => valor == null ? 'Pendiente' : new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(Number(valor))
+const moneda = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' })
+export const soles = (valor: string | number | null | undefined) =>
+  valor == null ? 'Pendiente' : moneda.format(valor as number | `${number}`)
