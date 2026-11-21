@@ -26,6 +26,7 @@ const enlaces: { ruta: string; texto: string; icono: Icono }[] = [
   { ruta: '/tallas', texto: 'Tallas', icono: 'tallas' },
   { ruta: '/colores', texto: 'Colores', icono: 'colores' },
   { ruta: '/productos-sku', texto: 'Productos SKU', icono: 'sku' },
+  { ruta: '/almacen', texto: 'Pendientes de recepción', icono: 'sku' },
   { ruta: '/costos-base', texto: 'Costos base', icono: 'costos' },
   { ruta: '/usuarios', texto: 'Gestión de Usuarios', icono: 'usuarios' },
   { ruta: '/margenes', texto: 'Márgenes de utilidad', icono: 'costos' } // NUEVO
@@ -53,7 +54,7 @@ export default function AdminLayout() {
   const [errorSalida, setErrorSalida] = useState('')
 
   // El inicio de otros roles conserva su pantalla sin menú administrativo.
-  if (!usuario?.roles.includes('Administrador') || /^\/(compras|ventas|almacen)(\/|$)/.test(pathname)) return <OperacionLayout />
+  if (!usuario?.roles.includes('Administrador') || /^\/(compras|ventas)(\/|$)/.test(pathname)) return <OperacionLayout />
 
   const cerrar = async () => {
     setCerrandoSesion(true)
