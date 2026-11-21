@@ -7,6 +7,7 @@ import AdminLayout from './components/AdminLayout'
 import { useAuthStore } from './store/authStore'
 
 import MargenesPage from './pages/MargenesPage'
+import PendientesDespachoPage from './pages/PendientesDespachoPage'
 
 import Home from './pages/Home'
 import Login from './pages/Login'
@@ -44,6 +45,10 @@ function App() {
           <Route element={<AdminLayout />}>
             {/* Inicio específico para Administrador y para los demás roles. */}
             <Route path="/inicio" element={<InicioRoute />} />
+
+            <Route element={<RolRoute rol="Almacen" permiteAdministrador />}>
+              <Route path="/almacen/pendientes-despacho/:idDespacho?" element={<PendientesDespachoPage />} />
+            </Route>
 
             {/* HU02: productos y tallas dentro de un borrador, solo rol Compras. */}
             <Route element={<ComprasRoute />}>
