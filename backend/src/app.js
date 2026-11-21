@@ -9,6 +9,8 @@ import express from 'express';
 import { instalarErroresApi } from './middlewares/erroresApi.js';
 import 'dotenv/config';
 
+import margenRoutes from './modules/margenes/margen.routes.js';
+
 import ordenCompraRoutes from './modules/ordenes-compra/ordenCompra.routes.js';
 
 import costoBaseRoutes from './modules/costos-base/costoBase.routes.js';
@@ -43,6 +45,10 @@ app.use('/api/usuarios', usuarioRoutes);
 
 // Registra las rutas del módulo de costos base.
 app.use('/api/costos-base', costoBaseRoutes);
+
+
+// API de márgenes de utilidad por tipo de cliente (Administrador).
+app.use('/api/margenes', margenRoutes);
 
 app.use('/api/compras', costoAdquisicionRoutes);
 

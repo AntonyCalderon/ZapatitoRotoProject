@@ -27,7 +27,8 @@ const enlaces: { ruta: string; texto: string; icono: Icono }[] = [
   { ruta: '/colores', texto: 'Colores', icono: 'colores' },
   { ruta: '/productos-sku', texto: 'Productos SKU', icono: 'sku' },
   { ruta: '/costos-base', texto: 'Costos base', icono: 'costos' },
-  { ruta: '/usuarios', texto: 'Gestión de Usuarios', icono: 'usuarios' }
+  { ruta: '/usuarios', texto: 'Gestión de Usuarios', icono: 'usuarios' },
+  { ruta: '/margenes', texto: 'Márgenes de utilidad', icono: 'costos' } // NUEVO
 ]
 
 const titulos: Record<string, string> = {
@@ -37,6 +38,7 @@ const titulos: Record<string, string> = {
   '/colores': 'Colores',
   '/productos-sku': 'Productos SKU',
   '/costos-base': 'Costos base',
+  '/margenes': 'Márgenes de utilidad', // NUEVO
   '/usuarios': 'Gestión de Usuarios'
 }
 
@@ -103,6 +105,7 @@ export default function AdminLayout() {
             {enlaces.slice(1, 5).map(enlace)}
             <p className="px-1 pb-1 pt-[13px] text-xs font-semibold text-[#ABB7EF]">COSTOS</p>
             {enlace(enlaces[5])}
+            {enlace(enlaces[7])} {/* NUEVO */}
             <p className="px-1 pb-1 pt-[13px] text-xs font-semibold text-[#ABB7EF]">ADMINISTRACIÓN</p>
             {enlace(enlaces[6])}
           </nav>

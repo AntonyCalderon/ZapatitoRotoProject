@@ -6,6 +6,8 @@ import ComprasRoute from './components/ComprasRoute'
 import AdminLayout from './components/AdminLayout'
 import { useAuthStore } from './store/authStore'
 
+import MargenesPage from './pages/MargenesPage'
+
 import Home from './pages/Home'
 import Login from './pages/Login'
 import CostoBasePage from './pages/CostoBasePage'
@@ -55,6 +57,8 @@ function App() {
             {/* Funcionalidades exclusivas del Administrador. */}
             <Route element={<AdminRoute />}>
               <Route path="/usuarios" element={<UsuariosPage />} />
+              {/* HU22: márgenes de utilidad por tipo de cliente. */}
+              <Route path="/margenes" element={<MargenesPage />} />
               {/* HU23: registro de costos base de Lima. */}
               <Route path="/costos-base" element={<CostoBasePage />} />
 
