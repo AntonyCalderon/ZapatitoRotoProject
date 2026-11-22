@@ -1,0 +1,276 @@
+{
+  "info": {
+    "name": "PROYEC-6 Existencias y Kardex físico",
+    "description": "Consultas con sesión de Almacén. No crea movimientos ni modifica stock. Definir correo y password localmente en Postman; no compartir ni exportar contraseñas.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "correo",
+      "value": ""
+    },
+    {
+      "key": "password",
+      "value": ""
+    },
+    {
+      "key": "sku_id",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Iniciar sesión de Almacén",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"correo\": \"{{correo}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200',()=>pm.response.to.have.status(200));",
+              "pm.test('Sesión iniciada',()=>pm.expect(pm.response.json()).to.have.property('usuario'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Catálogo para filtros",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/almacen/catalogo"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200',()=>pm.response.to.have.status(200));",
+              "pm.test('Opciones independientes',()=>{const d=pm.response.json();['modelos','colores','tallas'].forEach(k=>pm.expect(d[k]).to.be.an('array'));});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Existencias generales",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/almacen/existencias?catalogo=activos&pagina=1&tamano=20"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200',()=>pm.response.to.have.status(200));",
+              "pm.test('Tabla paginada y sin costos',()=>{const d=pm.response.json();pm.expect(d.items).to.be.an('array');pm.expect(d.total).to.be.a('number');if(d.items.length)pm.collectionVariables.set('sku_id',String(d.items[0].id_sku));d.items.forEach(i=>{pm.expect(i).to.include.all.keys('id_sku','codigo_sku','modelo','color','talla','cantidad_actual','stock_minimo','situacion','catalogo_activo');['precio_unitario','costo_unitario','igv'].forEach(k=>pm.expect(i).not.to.have.property(k));});});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Productos con stock bajo",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/almacen/existencias?situacion=stock_bajo"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200',()=>pm.response.to.have.status(200));",
+              "pm.test('Alertas correctas',()=>pm.response.json().items.forEach(i=>{pm.expect(i.cantidad_actual).to.be.above(0);pm.expect(i.stock_minimo).not.to.equal(null);pm.expect(i.cantidad_actual).to.be.at.most(i.stock_minimo);}));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Productos agotados",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/almacen/existencias?situacion=agotado"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200',()=>pm.response.to.have.status(200));",
+              "pm.test('Stock cero',()=>pm.response.json().items.forEach(i=>pm.expect(i.cantidad_actual).to.equal(0)));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Kardex físico del SKU elegido",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/almacen/kardex/{{sku_id}}?pagina=1&tamano=20"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200',()=>pm.response.to.have.status(200));",
+              "pm.test('Saldo físico e historial',()=>{const d=pm.response.json();pm.expect(d.producto).to.have.property('codigo_sku');pm.expect(d.cantidad_actual).to.be.at.least(0);pm.expect(d.items).to.be.an('array');d.items.forEach(i=>{pm.expect(i).to.include.all.keys('fecha','tipo_movimiento','documento_origen','entrada','salida','saldo_posterior','responsable');pm.expect(i.id_movimiento).to.be.a('string');});});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Kardex filtrado por fecha y tipo",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/almacen/kardex/{{sku_id}}?desde=2026-01-01&hasta=2026-12-31&tipo_movimiento=ENTRADA_COMPRA"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200',()=>pm.response.to.have.status(200));",
+              "pm.test('Solo entradas por compra',()=>pm.response.json().items.forEach(i=>pm.expect(i.tipo_movimiento).to.equal('ENTRADA_COMPRA')));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Rechazar página inválida",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/almacen/existencias?pagina=0"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Filtro inválido',()=>{pm.response.to.have.status(400);pm.expect(pm.response.json().codigo).to.equal('FILTRO_INVALIDO');});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 Rechazar fecha inexistente",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/almacen/kardex/{{sku_id}}?desde=2026-02-30"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Fecha inválida',()=>pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 SKU inexistente",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/almacen/kardex/2147483647"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('SKU no encontrado',()=>{pm.response.to.have.status(404);pm.expect(pm.response.json().codigo).to.equal('SKU_NO_ENCONTRADO');});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 Cerrar sesión",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": "{{base_url}}/api/auth/logout"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200',()=>pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 Verificar protección sin sesión",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/almacen/existencias"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Requiere sesión',()=>pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

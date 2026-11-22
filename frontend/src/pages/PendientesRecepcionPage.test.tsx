@@ -20,6 +20,8 @@ function abrir(rol: string, ruta: string) {
     })
     if (url === '/api/almacen/pendientes-despacho') return Response.json({ despachos: [] })
     if (url.startsWith('/api/ordenes-compra')) return Response.json({ borradores: [] })
+    if (url.startsWith('/api/modelos')) return Response.json({ modelos: [] })
+    if (url.startsWith('/api/productos-sku')) return Response.json({ productos: [] })
     throw new Error('Ruta inesperada: ' + url)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -49,22 +51,16 @@ it('permite a Almacén navegar entre recepción y despacho con botones separados
   expect(await screen.findByRole('link', { name: 'OC-2026-009' })).toBeInTheDocument()
 })
 
-it('conserva ambos accesos de Administración sin desplazar costos, márgenes o usuarios', async () => {
-  const usuario = userEvent.setup()
-  abrir('Administrador', '/almacen/pendientes/9')
-  await screen.findByRole('row', { name: 'Threshold Negro 40 12' })
-  const nav = screen.getByRole('navigation', { name: 'Navegación administrativa' })
-  const recepcion = within(nav).getByRole('link', { name: 'Pendientes de recepción' })
-  const despacho = within(nav).getByRole('link', { name: 'Pendientes de despacho' })
-  expect(recepcion).toHaveClass('bg-[#3730A3]')
-  for (const [name, href] of [['Costos base', '/costos-base'], ['Márgenes de utilidad', '/margenes'], ['Gestión de Usuarios', '/usuarios']]) {
-    expect(within(nav).getByRole('link', { name })).toHaveAttribute('href', href)
-  }
-  await usuario.click(despacho)
-  expect(await screen.findByText('No hay órdenes pendientes de despacho.')).toBeInTheDocument()
-  expect(despacho).toHaveAttribute('aria-current', 'page')
-  expect(recepcion).not.toHaveClass('bg-[#3730A3]')
-  expect(recepcion).not.toHaveAttribute('aria-current')
+it('mantiene Administración separada y bloquea las rutas de Almacén sin su rol', async () => {
+  const fetchMock = abrir('Administrador', '/almacen/pendientes/9')
+  const nav = await screen.findByRole('navigation', { name: 'Navegación administrativa' })
+  await screen.findByRole('heading', { name: 'Resumen del catálogo' })
+  expect(within(nav).queryByRole('link', { name: 'Pendientes de recepción' })).not.toBeInTheDocument()
+  expect(within(nav).queryByRole('link', { name: 'Pendientes de despacho' })).not.toBeInTheDocument()
+  expect(within(nav).queryByRole('link', { name: 'Kardex' })).not.toBeInTheDocument()
+  expect(within(nav).getByRole('link', { name: 'Costos base' })).toHaveAttribute('href', '/costos-base')
+  expect(within(nav).getByRole('link', { name: 'Márgenes de utilidad' })).toHaveAttribute('href', '/margenes')
+  expect(fetchMock.mock.calls.some(([url]) => url.startsWith('/api/almacen'))).toBe(false)
 })
 
 it('no permite que Compras consulte recepción al intentar abrir la URL', async () => {

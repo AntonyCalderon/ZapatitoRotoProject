@@ -5,7 +5,7 @@ import express from 'express';
 import pool from '../../config/database.js';
 import despachoRoutes from './despacho.routes.js';
 
-test('la bandeja y su detalle requieren una sesión de Almacén o Administración', async t => {
+test('la bandeja y su detalle requieren una sesión con rol Almacén', async t => {
   const roles = new Map([[1, ['Almacen']], [2, ['Administrador']], [3, ['Ventas']], [4, ['Compras']]]);
   const despacho = { id_orden_despacho: 5, codigo: 'DES-005' };
   const productos = [{ id_sku: 1, modelo: 'Threshold', color: 'Negro', talla: '40.0', cantidad: 2 }];
@@ -43,12 +43,13 @@ test('la bandeja y su detalle requieren una sesión de Almacén o Administració
 
   for (const ruta of ['', '/5']) {
     await consultar(ruta, 0, 401);
+    await consultar(ruta, 2, 403);
     await consultar(ruta, 3, 403);
     await consultar(ruta, 4, 403);
   }
 
   assert.deepEqual(await consultar('', 1, 200), { despachos: [despacho] });
-  assert.deepEqual(await consultar('/5', 2, 200), { despacho: { ...despacho, productos } });
+  assert.deepEqual(await consultar('/5', 1, 200), { despacho: { ...despacho, productos } });
   await consultar('/6', 1, 404);
   await consultar('/2147483648', 1, 400);
 });
