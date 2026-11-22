@@ -23,6 +23,8 @@ import ComprasBorradoresPage from './pages/ComprasBorradoresPage'
 import CompraEditorPage from './pages/CompraEditorPage'
 import PendientesRecepcionPage from './pages/PendientesRecepcionPage'
 import RolRoute from './components/RolRoute'
+import ExistenciasPage from './pages/ExistenciasPage'
+import KardexDetallePage from './pages/KardexDetallePage'
 
 export function InicioRoute() {
   const esAdministrador = useAuthStore((state) => state.user?.roles.includes('Administrador') ?? false)
@@ -48,7 +50,9 @@ function App() {
             {/* Inicio específico para Administrador y para los demás roles. */}
             <Route path="/inicio" element={<InicioRoute />} />
 
-            <Route element={<RolRoute rol="Almacen" permiteAdministrador />}>
+            <Route element={<RolRoute rol="Almacen" />}>
+              <Route path="/almacen/kardex" element={<ExistenciasPage />} />
+              <Route path="/almacen/kardex/:skuId" element={<KardexDetallePage />} />
               <Route path="/almacen/pendientes-despacho/:idDespacho?" element={<PendientesDespachoPage />} />
             </Route>
 
@@ -59,7 +63,7 @@ function App() {
             </Route>
 
             <Route element={<RolRoute rol="Ventas" />}><Route path="/ventas" element={<Home />} /></Route>
-            <Route element={<RolRoute rol="Almacen" permiteAdministrador />}>
+            <Route element={<RolRoute rol="Almacen" />}>
               <Route path="/almacen" element={<PendientesRecepcionPage />} />
               <Route path="/almacen/pendientes/:id" element={<PendientesRecepcionPage />} />
             </Route>

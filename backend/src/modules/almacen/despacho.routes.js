@@ -3,7 +3,7 @@ import { autorizarRoles, requerirAutenticacion } from '../../middlewares/autoriz
 import { buscarPendienteDespacho, listarPendientesDespacho } from './despacho.repository.js';
 
 const router = Router();
-router.use(requerirAutenticacion, autorizarRoles('Almacen', 'Administrador'));
+router.use(requerirAutenticacion, autorizarRoles('Almacen'));
 
 router.get('/', async (_req, res) => {
   const despachos = await listarPendientesDespacho();

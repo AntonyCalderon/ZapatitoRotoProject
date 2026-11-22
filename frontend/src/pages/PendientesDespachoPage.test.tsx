@@ -25,6 +25,8 @@ function abrir(rol: string, pagina = ruta) {
     }
     if (url === '/api' + ruta) return Response.json({ despachos: [antiguo, reciente] })
     if (url === '/api' + ruta + '/2') return Response.json({ despacho: { ...antiguo, productos } })
+    if (url.startsWith('/api/modelos')) return Response.json({ modelos: [] })
+    if (url.startsWith('/api/productos-sku')) return Response.json({ productos: [] })
     throw new Error('Ruta inesperada durante la prueba ' + url)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -56,15 +58,14 @@ it('muestra la cola y permite abrir el detalle de un despacho desde Almacén', a
   expect(within(detalle).getByRole('row', { name: 'Threshold Negro 40 2' })).toBeInTheDocument()
 })
 
-it('mantiene el menú administrativo al consultar y bloquea la ruta para Ventas', async () => {
-  abrir('Administrador', ruta + '/2')
-  expect(await screen.findByRole('navigation', { name: 'Navegación administrativa' })).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: 'Pendientes de despacho' })).toHaveAttribute('aria-current', 'page')
-  expect(await screen.findByRole('heading', { name: 'Despacho DES-002' })).toBeInTheDocument()
-
-  cleanup()
-  useAuthStore.setState({ user: null })
-  const fetchMock = abrir('Ventas', ruta + '/2')
-  expect(await screen.findByRole('heading', { name: 'Ventas' })).toBeInTheDocument()
-  expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/auth/me'])
+it('mantiene Administración separada y bloquea las rutas de Almacén sin su rol', async () => {
+  const fetchMock = abrir('Administrador', ruta + '/2')
+  const nav = await screen.findByRole('navigation', { name: 'Navegación administrativa' })
+  await screen.findByRole('heading', { name: 'Resumen del catálogo' })
+  expect(within(nav).queryByRole('link', { name: 'Pendientes de recepción' })).not.toBeInTheDocument()
+  expect(within(nav).queryByRole('link', { name: 'Pendientes de despacho' })).not.toBeInTheDocument()
+  expect(within(nav).queryByRole('link', { name: 'Kardex' })).not.toBeInTheDocument()
+  expect(within(nav).getByRole('link', { name: 'Costos base' })).toHaveAttribute('href', '/costos-base')
+  expect(within(nav).getByRole('link', { name: 'Márgenes de utilidad' })).toHaveAttribute('href', '/margenes')
+  expect(fetchMock.mock.calls.some(([url]) => url.startsWith('/api/almacen'))).toBe(false)
 })

@@ -25,7 +25,7 @@ export default function OperacionLayout() {
   const [error, setError] = useState('')
   const disponibles = modulos.filter(m => user?.roles.includes(m.rol))
   const actual = disponibles.find(m => pathname.startsWith(m.ruta)) ?? disponibles[0]
-  const enDespachos = /^\/almacen\/pendientes-despacho(?:\/|$)/i.test(pathname)
+  const enOtraSeccionAlmacen = /^\/almacen\/(?:pendientes-despacho|kardex)(?:\/|$)/i.test(pathname)
   const confirmar = () => !dirty || window.confirm('Tienes cambios sin guardar. ¿Deseas salir sin guardar?')
   const navegar = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (!confirmar()) {
@@ -52,13 +52,13 @@ export default function OperacionLayout() {
       <nav aria-label="Navegación de operaciones">
         {disponibles.map(m => (
           <NavLink
-            key={m.ruta} to={m.ruta} end={m.rol === 'Almacen' && enDespachos} onClick={navegar}
+            key={m.ruta} to={m.ruta} end={m.rol === 'Almacen' && enOtraSeccionAlmacen} onClick={navegar}
             className={({ isActive }) => `ops-nav-link ${isActive || pathname === '/inicio' && actual === m ? 'is-active' : ''}`}
           >
             <OpIcon name={m.icono} />{m.rol === 'Almacen' ? 'Pendientes de recepción' : m.titulo}
           </NavLink>
         ))}
-        {user?.roles.includes('Almacen') && (
+        {user?.roles.includes('Almacen') && <>
           <NavLink
             to="/almacen/pendientes-despacho"
             onClick={navegar}
@@ -66,7 +66,8 @@ export default function OperacionLayout() {
           >
             <OpIcon name="documento" />Pendientes de despacho
           </NavLink>
-        )}
+          <NavLink to="/almacen/kardex" onClick={navegar} className={({ isActive }) => `ops-nav-link ${isActive ? 'is-active' : ''}`}><OpIcon name="documento" />Kardex</NavLink>
+        </>}
       </nav>
       <div className="ops-sidebar-bottom"><span className="ops-avatar">{initials}</span><div><strong>{user?.nombre}</strong><small>{actual?.titulo ?? 'Operaciones'}</small></div><button className="ops-icon-button" aria-label="Cerrar sesión" disabled={saliendo} onClick={() => void salir()}><OpIcon name="salir" /></button></div>
     </aside>

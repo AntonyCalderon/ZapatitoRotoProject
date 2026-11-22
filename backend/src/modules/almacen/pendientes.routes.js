@@ -3,7 +3,7 @@ import pool from '../../config/database.js';
 import { requerirAutenticacion, autorizarRoles } from '../../middlewares/autorizarRoles.js';
 
 const router = Router();
-router.use(requerirAutenticacion, autorizarRoles('Almacen', 'Administrador'));
+router.use(requerirAutenticacion, autorizarRoles('Almacen'));
 
 const pendiente = `o.estado = 'EMITIDA' AND NOT EXISTS (
   SELECT 1 FROM recepcion_compra r WHERE r.id_orden_compra = o.id_orden_compra
