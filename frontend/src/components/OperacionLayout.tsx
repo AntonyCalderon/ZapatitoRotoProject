@@ -25,7 +25,16 @@ export default function OperacionLayout() {
   const [error, setError] = useState('')
   const disponibles = modulos.filter(m => user?.roles.includes(m.rol))
   const actual = disponibles.find(m => pathname.startsWith(m.ruta)) ?? disponibles[0]
+  const enDespachos = /^\/almacen\/pendientes-despacho(?:\/|$)/i.test(pathname)
   const confirmar = () => !dirty || window.confirm('Tienes cambios sin guardar. ¿Deseas salir sin guardar?')
+  const navegar = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!confirmar()) {
+      e.preventDefault()
+      return
+    }
+    setMenu(false)
+    setDirty(false)
+  }
   const salir = async () => {
     if (!confirmar()) return
     setSaliendo(true); setError('')
@@ -41,7 +50,23 @@ export default function OperacionLayout() {
       <div className="ops-brand"><span className="ops-brand-mark"><OpIcon name="bolsa" /></span><div>AyM Shafety<small>GESTIÓN COMERCIAL</small></div></div>
       <p className="ops-nav-caption">ESPACIO DE TRABAJO</p>
       <nav aria-label="Navegación de operaciones">
-        {disponibles.map(m => <NavLink key={m.ruta} to={m.ruta} onClick={e => { if (!confirmar()) e.preventDefault(); else { setMenu(false); setDirty(false) } }} className={({isActive}) => `ops-nav-link ${isActive || pathname === '/inicio' && actual === m ? 'is-active' : ''}`}><OpIcon name={m.icono} />{m.titulo}</NavLink>)}
+        {disponibles.map(m => (
+          <NavLink
+            key={m.ruta} to={m.ruta} end={m.rol === 'Almacen' && enDespachos} onClick={navegar}
+            className={({ isActive }) => `ops-nav-link ${isActive || pathname === '/inicio' && actual === m ? 'is-active' : ''}`}
+          >
+            <OpIcon name={m.icono} />{m.rol === 'Almacen' ? 'Pendientes de recepción' : m.titulo}
+          </NavLink>
+        ))}
+        {user?.roles.includes('Almacen') && (
+          <NavLink
+            to="/almacen/pendientes-despacho"
+            onClick={navegar}
+            className={({ isActive }) => `ops-nav-link ${isActive ? 'is-active' : ''}`}
+          >
+            <OpIcon name="documento" />Pendientes de despacho
+          </NavLink>
+        )}
       </nav>
       <div className="ops-sidebar-bottom"><span className="ops-avatar">{initials}</span><div><strong>{user?.nombre}</strong><small>{actual?.titulo ?? 'Operaciones'}</small></div><button className="ops-icon-button" aria-label="Cerrar sesión" disabled={saliendo} onClick={() => void salir()}><OpIcon name="salir" /></button></div>
     </aside>

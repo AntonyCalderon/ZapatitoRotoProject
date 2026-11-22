@@ -26,7 +26,6 @@ const enlaces: { ruta: string; texto: string; icono: Icono }[] = [
   { ruta: '/tallas', texto: 'Tallas', icono: 'tallas' },
   { ruta: '/colores', texto: 'Colores', icono: 'colores' },
   { ruta: '/productos-sku', texto: 'Productos SKU', icono: 'sku' },
-  { ruta: '/almacen', texto: 'Pendientes de recepción', icono: 'sku' },
   { ruta: '/costos-base', texto: 'Costos base', icono: 'costos' },
   { ruta: '/usuarios', texto: 'Gestión de Usuarios', icono: 'usuarios' },
   { ruta: '/margenes', texto: 'Márgenes de utilidad', icono: 'costos' } // NUEVO
@@ -53,8 +52,14 @@ export default function AdminLayout() {
   const [cerrandoSesion, setCerrandoSesion] = useState(false)
   const [errorSalida, setErrorSalida] = useState('')
 
-  // El inicio de otros roles conserva su pantalla sin menú administrativo.
-  if (!usuario?.roles.includes('Administrador') || /^\/(compras|ventas)(\/|$)/.test(pathname)) return <OperacionLayout />
+  const esDespacho = /^\/almacen\/pendientes-despacho(?:\/|$)/i.test(pathname)
+  const esRecepcion = pathname === '/almacen' || pathname === '/almacen/' || /^\/almacen\/pendientes(?:\/|$)/i.test(pathname)
+  const esOperacion = /^\/(compras|ventas|almacen)(\/|$)/.test(pathname)
+  if (!usuario?.roles.includes('Administrador') || (esOperacion && !esDespacho && !esRecepcion)) return <OperacionLayout />
+
+  const titulo = esDespacho
+    ? 'Pendientes de despacho'
+    : esRecepcion ? 'Pendientes de recepción' : titulos[pathname] ?? 'Administración'
 
   const cerrar = async () => {
     setCerrandoSesion(true)
@@ -74,9 +79,9 @@ export default function AdminLayout() {
     <NavLink
       key={ruta}
       to={ruta}
-      end
+      end={ruta === '/almacen' ? esDespacho : ruta !== '/almacen/pendientes-despacho'}
       onClick={() => setMenuAbierto(false)}
-      className={({ isActive }) => `flex h-12 items-center gap-3 rounded-[10px] px-3 text-[15px] transition-colors ${isActive ? 'bg-[#3730A3] font-semibold text-white' : 'text-[#F3F3FA] hover:bg-white/10'}`}
+      className={({ isActive }) => `flex h-12 items-center gap-3 rounded-[10px] px-3 text-[15px] transition-colors ${(ruta === '/almacen' ? esRecepcion : isActive) ? 'bg-[#3730A3] font-semibold text-white' : 'text-[#F3F3FA] hover:bg-white/10'}`}
     >
       <Icon tipo={icono} className="h-[19px] w-[19px] shrink-0 text-[#C8D0FF]" />
       {texto}
@@ -109,6 +114,9 @@ export default function AdminLayout() {
             {enlace(enlaces[7])} {/* NUEVO */}
             <p className="px-1 pb-1 pt-[13px] text-xs font-semibold text-[#ABB7EF]">ADMINISTRACIÓN</p>
             {enlace(enlaces[6])}
+            <p className="px-1 pb-1 pt-[13px] text-xs font-semibold text-[#ABB7EF]">ALMACÉN</p>
+            {enlace({ ruta: '/almacen', texto: 'Pendientes de recepción', icono: 'sku' })}
+            {enlace({ ruta: '/almacen/pendientes-despacho', texto: 'Pendientes de despacho', icono: 'sku' })}
           </nav>
         </aside>
 
@@ -116,7 +124,7 @@ export default function AdminLayout() {
           <header className="relative mb-[18px] flex items-center justify-between gap-4">
             <div className="min-w-0">
               <p className="text-[12px] leading-5 text-[#6E6E73]">Panel de Administración</p>
-              <h1 className="truncate text-[18px] font-semibold leading-7 text-[#25262B]">{titulos[pathname] ?? 'Administración'}</h1>
+              <h1 className="truncate text-[18px] font-semibold leading-7 text-[#25262B]">{titulo}</h1>
             </div>
             <div className="relative shrink-0">
               <button type="button" aria-label="Abrir perfil" aria-expanded={perfilAbierto} onClick={() => setPerfilAbierto(!perfilAbierto)} className="rounded-full p-1 text-[#676C70] hover:bg-slate-200/70">

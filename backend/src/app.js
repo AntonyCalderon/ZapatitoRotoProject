@@ -26,6 +26,7 @@ import tallaRoutes from './modules/tallas/talla.routes.js';
 import colorRoutes from './modules/colores/color.routes.js';
 import productoSkuRoutes from './modules/productos-sku/productoSku.routes.js';
 import costoAdquisicionRoutes from './modules/compras/costoAdquisicion.routes.js';
+import despachoRoutes from './modules/almacen/despacho.routes.js';
 
 
 // HU02: selección de modelos, colores y tallas dentro de un borrador de compra.
@@ -52,6 +53,7 @@ app.use('/api/costos-base', costoBaseRoutes);
 app.use('/api/margenes', margenRoutes);
 
 app.use('/api/compras', costoAdquisicionRoutes);
+app.use('/api/almacen/pendientes-despacho', despachoRoutes);
 
 // API de administración del catálogo de modelos.
 app.use('/api/modelos', modeloRoutes);

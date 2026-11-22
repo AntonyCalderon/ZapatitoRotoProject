@@ -11,7 +11,7 @@ for (const [rol, path, nombre] of [['Ventas', '/ventas', 'Ventas'], ['Almacen', 
     useAuthStore.setState({ user: { id_usuario: 1, nombre: 'Ana', correo: 'ana@example.com', roles: [rol], debe_cambiar_password: false } })
     render(<MemoryRouter initialEntries={[path]}><Routes><Route element={<OperacionLayout />}><Route element={<RolRoute rol={rol} />}><Route path={path} element={<Home />} /></Route></Route></Routes></MemoryRouter>)
     expect(screen.getByRole('navigation', { name: 'Navegación de operaciones' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: nombre })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: rol === 'Almacen' ? 'Pendientes de recepción' : nombre })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('heading', { level: 1, name: nombre })).toBeInTheDocument()
     expect(screen.getByText('En preparación')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Gestión de Usuarios' })).not.toBeInTheDocument()
