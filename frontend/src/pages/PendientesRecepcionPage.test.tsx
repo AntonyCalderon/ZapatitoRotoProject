@@ -16,7 +16,7 @@ function abrir(rol: string, ruta: string) {
     ])
     if (url === '/api/almacen/pendientes/9') return Response.json({
       codigo: 'OC-2026-009', proveedor: 'Proveedor de prueba',
-      lineas: [{ modelo: 'Threshold', color: 'Negro', talla: '40.0', cantidad: 12 }],
+      lineas: [{ id_detalle_compra: 1, id_sku: 1, codigo_sku: 'THR-NEG-40', modelo: 'Threshold', color: 'Negro', talla: '40.0', cantidad: 12 }],
     })
     if (url === '/api/almacen/pendientes-despacho') return Response.json({ despachos: [] })
     if (url.startsWith('/api/ordenes-compra')) return Response.json({ borradores: [] })
@@ -34,21 +34,21 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals(); useAuthStore.setState({ user
 it('permite a Almacén navegar entre recepción y despacho con botones separados', async () => {
   const usuario = userEvent.setup()
   abrir('Almacen', '/inicio')
-  await screen.findByRole('link', { name: 'OC-2026-009' })
+  await screen.findByRole('rowheader', { name: 'OC-2026-009' })
   const nav = screen.getByRole('navigation', { name: 'Navegación de operaciones' })
   const recepcion = within(nav).getByRole('link', { name: 'Pendientes de recepción' })
   const despacho = within(nav).getByRole('link', { name: 'Pendientes de despacho' })
   expect(recepcion).toHaveAttribute('aria-current', 'page')
   expect(despacho).not.toHaveAttribute('aria-current')
-  await usuario.click(screen.getByRole('link', { name: 'OC-2026-009' }))
-  expect(await screen.findByRole('row', { name: 'Threshold Negro 40 12' })).toBeInTheDocument()
+  await usuario.click(screen.getByRole('link', { name: 'Abrir recepción OC-2026-009' }))
+  expect(await screen.findByRole('row', { name: /THR-NEG-40 Threshold Negro 40 12/ })).toBeInTheDocument()
   await usuario.click(despacho)
   expect(await screen.findByRole('heading', { name: 'Pendientes de despacho' })).toBeInTheDocument()
   expect(despacho).toHaveAttribute('aria-current', 'page')
   expect(recepcion).not.toHaveAttribute('aria-current')
   expect(screen.queryByRole('link', { name: 'Gestión de Usuarios' })).not.toBeInTheDocument()
   await usuario.click(recepcion)
-  expect(await screen.findByRole('link', { name: 'OC-2026-009' })).toBeInTheDocument()
+  expect(await screen.findByRole('rowheader', { name: 'OC-2026-009' })).toBeInTheDocument()
 })
 
 it('mantiene Administración separada y bloquea las rutas de Almacén sin su rol', async () => {
