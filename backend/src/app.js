@@ -7,6 +7,7 @@ Configura Express, registra las rutas HTTP e inicia el servidor.
 
 import express from 'express';
 import inventarioRoutes from './modules/almacen/inventario.routes.js';
+import recepcionRoutes from './modules/almacen/recepcion.routes.js';
 import { instalarErroresApi } from './middlewares/erroresApi.js';
 import 'dotenv/config';
 
@@ -77,6 +78,7 @@ app.use('/api/almacen/pendientes', pendientesRoutes);
 app.use('/api/ordenes-compra', ordenCompraRoutes);
 
 // Consultas de existencias y Kardex físico de Almacén.
+app.use('/api/almacen/recepciones', recepcionRoutes);
 app.use('/api/almacen', inventarioRoutes);
 
 instalarErroresApi(app);

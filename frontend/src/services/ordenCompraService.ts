@@ -40,8 +40,15 @@ async function solicitudCompra<T>(ruta: string, opciones?: RequestInit) {
 }
 export const obtenerProveedores = () =>
   solicitudCompra<{ id_proveedor: number; razon_social: string }[]>('proveedores')
-export const obtenerEmitidas = () =>
-  solicitudCompra<{ id_orden_compra: number; codigo: string }[]>('emitidas')
+export interface OrdenEmitida {
+  id_orden_compra:number; codigo:string; estado:'EMITIDA'; proveedor:string|null;
+  situacion_logistica:'EN_TRANSITO'|'RECIBIDA'; lote_verificado:boolean;
+  id_recepcion:number|null; usuario_almacen:string|null; fecha_recepcion:string|null;
+  usuario_confirma:string|null; fecha_confirmacion:string|null;
+}
+export const obtenerEmitidas = () => solicitudCompra<OrdenEmitida[]>('emitidas')
+export const confirmarCompraComercialmente = (id:number) =>
+  solicitudCompra<{mensaje:string;orden:OrdenEmitida}>(id + '/confirmacion', {method:'POST'})
 export const revisarEmision = (id: number) => solicitudCompra<Revision>(id + '/revision')
 export interface OrigenCompra { tipo: string; referencia: string }
 export const confirmarEmision = (id: number, version: string, origenes: OrigenCompra[]) =>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { cancelarBorrador, crearBorrador, obtenerBorradores, obtenerEmitidas, type OrdenCompra } from '../services/ordenCompraService'
 import { EstadoCompra, fechaCompra, OpIcon } from '../components/OperacionUI'
+import OrdenesEmitidas from '../components/OrdenesEmitidas'
 
 export default function ComprasBorradoresPage() {
   const navigate = useNavigate()
@@ -27,6 +28,11 @@ export default function ComprasBorradoresPage() {
       .catch(e => { if (activo) setError(e.message) })
     return () => { activo = false }
   }, [intento])
+  useEffect(() => {
+    const actualizar = () => setIntento(n => n + 1)
+    window.addEventListener('focus', actualizar)
+    return () => window.removeEventListener('focus', actualizar)
+  }, [])
   const nueva = async () => {
     setCreando(true); setError('')
     try { const {orden} = await crearBorrador(); navigate(`/compras/borrador/${orden.id_orden_compra}`) }
@@ -59,13 +65,6 @@ export default function ComprasBorradoresPage() {
       </tbody></table></div>
       <div className="ops-table-footer">{cargando ? 'Consultando…' : `${filtradas.length} de ${ordenes.length} solicitudes`}</div>
     </section>
-        {emitidas.length > 0 && <section className="rounded-2xl border bg-white p-6">
-          <h2 className="font-semibold">Órdenes emitidas</h2>
-          {emitidas.map(o => <p key={o.id_orden_compra} className="mt-2">
-            <a href={`/api/ordenes-compra/${o.id_orden_compra}/pdf`} className="text-indigo-700 underline">
-              Descargar {o.codigo} (PDF)
-            </a>
-          </p>)}
-        </section>}
+    {emitidas.length > 0 && <OrdenesEmitidas ordenes={emitidas} actualizar={() => setIntento(n => n + 1)} />}
   </>
 }

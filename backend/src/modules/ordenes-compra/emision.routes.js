@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import pool from '../../config/database.js';
+import { listarEmitidasConRecepcion, confirmarCompraComercialmente } from './confirmacionCompra.repository.js';
 import { procesarEmision } from '../../casos-uso/emitirOrden.js';
 import { pdfOrden } from './ordenPdf.js';
 
@@ -10,10 +11,12 @@ router.get('/proveedores', async (_req, res) => {
   const { rows } = await pool.query('SELECT id_proveedor, razon_social FROM proveedor ORDER BY razon_social');
   res.json(rows);
 });
-router.get('/emitidas', async (_req, res) => {
-  const { rows } = await pool.query(`SELECT id_orden_compra,codigo FROM orden_compra
-    WHERE documento_emitido IS NOT NULL ORDER BY fecha_emision DESC`);
-  res.json(rows);
+router.get('/emitidas', async (_req,res) => {
+  res.set('Cache-Control','private, no-store').json(await listarEmitidasConRecepcion());
+});
+router.post('/:id/confirmacion', async (req,res) => {
+  const orden = await confirmarCompraComercialmente(req.params.id,req.usuario.id_usuario);
+  res.json({ mensaje:'Confirmación comercial registrada.',orden });
 });
 router.get('/:id/revision', async (req,res) => res.json(await procesarEmision(req.params.id, req.session.idUsuario, null)));
 router.post('/:id/emitir', async (req,res) => res.json(await procesarEmision(req.params.id, req.session.idUsuario, req.body ?? {})));

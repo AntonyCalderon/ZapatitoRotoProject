@@ -85,3 +85,7 @@ El script bloquea la compra y los saldos, registra recepción y movimientos en u
 ## Mínimo acordado de cinco pares
 
 Aplicar 014_stock_minimo_cinco.sql después de 013. Completa los SKU actuales con mínimo 5, establece DEFAULT 5 y prohíbe NULL. No modifica stock actual ni historial. La lógica de consulta compara saldo y mínimo; no se guarda otra columna de situación. Las compatibilidades de API con sin_minimo quedan sin coincidencias después de aplicar 014.
+
+## Recepción completa implementada
+
+El flujo de recepción física ya cuenta con interfaz y API transaccional; ver docs/recepcion-compra.md. El script de simulación anterior se conserva solo como herramienta de prueba. La confirmación comercial consulta la recepción verificada y nunca vuelve a sumar stock. Aplicar la migración 015 después de 014 en cada entorno.
