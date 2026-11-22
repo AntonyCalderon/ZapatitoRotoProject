@@ -21,12 +21,14 @@ import CambiarPasswordPage from './pages/CambiarPasswordPage'
 import UsuariosPage from './pages/UsuariosPage'
 import ComprasBorradoresPage from './pages/ComprasBorradoresPage'
 import CompraEditorPage from './pages/CompraEditorPage'
+import PendientesRecepcionPage from './pages/PendientesRecepcionPage'
 import RolRoute from './components/RolRoute'
 
 export function InicioRoute() {
   const esAdministrador = useAuthStore((state) => state.user?.roles.includes('Administrador') ?? false)
   const esCompras = useAuthStore((state) => state.user?.roles.includes('Compras') ?? false)
-  return esAdministrador ? <AdminInicio /> : esCompras ? <Navigate to="/compras" replace /> : <Home />
+  const esAlmacen = useAuthStore(s => s.user?.roles.includes('Almacen'))
+  return esAdministrador ? <AdminInicio /> : esCompras ? <Navigate to="/compras" replace /> : esAlmacen ? <Navigate to="/almacen" replace /> : <Home />
 }
 
 function App() {
@@ -57,7 +59,10 @@ function App() {
             </Route>
 
             <Route element={<RolRoute rol="Ventas" />}><Route path="/ventas" element={<Home />} /></Route>
-            <Route element={<RolRoute rol="Almacen" />}><Route path="/almacen" element={<Home />} /></Route>
+            <Route element={<RolRoute rol="Almacen" permiteAdministrador />}>
+              <Route path="/almacen" element={<PendientesRecepcionPage />} />
+              <Route path="/almacen/pendientes/:id" element={<PendientesRecepcionPage />} />
+            </Route>
 
             {/* Funcionalidades exclusivas del Administrador. */}
             <Route element={<AdminRoute />}>

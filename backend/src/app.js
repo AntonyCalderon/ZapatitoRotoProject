@@ -11,6 +11,7 @@ import 'dotenv/config';
 
 import margenRoutes from './modules/margenes/margen.routes.js';
 
+import pendientesRoutes from './modules/almacen/pendientes.routes.js';
 import ordenCompraRoutes from './modules/ordenes-compra/ordenCompra.routes.js';
 
 import costoBaseRoutes from './modules/costos-base/costoBase.routes.js';
@@ -71,6 +72,7 @@ app.use('/api/productos-sku', productoSkuRoutes);
 app.use('/api/lineas-compra', lineaCompraRoutes);
 
 // API de Compras: borradores de órdenes de compra.
+app.use('/api/almacen/pendientes', pendientesRoutes);
 app.use('/api/ordenes-compra', ordenCompraRoutes);
 
 instalarErroresApi(app);

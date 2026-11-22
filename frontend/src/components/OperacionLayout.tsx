@@ -55,7 +55,7 @@ export default function OperacionLayout() {
             key={m.ruta} to={m.ruta} end={m.rol === 'Almacen' && enDespachos} onClick={navegar}
             className={({ isActive }) => `ops-nav-link ${isActive || pathname === '/inicio' && actual === m ? 'is-active' : ''}`}
           >
-            <OpIcon name={m.icono} />{m.titulo}
+            <OpIcon name={m.icono} />{m.rol === 'Almacen' ? 'Pendientes de recepción' : m.titulo}
           </NavLink>
         ))}
         {user?.roles.includes('Almacen') && (

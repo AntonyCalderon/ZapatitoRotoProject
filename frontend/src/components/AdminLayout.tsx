@@ -53,12 +53,13 @@ export default function AdminLayout() {
   const [errorSalida, setErrorSalida] = useState('')
 
   const esDespacho = /^\/almacen\/pendientes-despacho(?:\/|$)/i.test(pathname)
+  const esRecepcion = pathname === '/almacen' || pathname === '/almacen/' || /^\/almacen\/pendientes(?:\/|$)/i.test(pathname)
   const esOperacion = /^\/(compras|ventas|almacen)(\/|$)/.test(pathname)
-  if (!usuario?.roles.includes('Administrador') || (esOperacion && !esDespacho)) return <OperacionLayout />
+  if (!usuario?.roles.includes('Administrador') || (esOperacion && !esDespacho && !esRecepcion)) return <OperacionLayout />
 
   const titulo = esDespacho
     ? 'Pendientes de despacho'
-    : titulos[pathname] ?? 'Administración'
+    : esRecepcion ? 'Pendientes de recepción' : titulos[pathname] ?? 'Administración'
 
   const cerrar = async () => {
     setCerrandoSesion(true)
@@ -78,9 +79,9 @@ export default function AdminLayout() {
     <NavLink
       key={ruta}
       to={ruta}
-      end={ruta !== '/almacen/pendientes-despacho'}
+      end={ruta === '/almacen' ? esDespacho : ruta !== '/almacen/pendientes-despacho'}
       onClick={() => setMenuAbierto(false)}
-      className={({ isActive }) => `flex h-12 items-center gap-3 rounded-[10px] px-3 text-[15px] transition-colors ${isActive ? 'bg-[#3730A3] font-semibold text-white' : 'text-[#F3F3FA] hover:bg-white/10'}`}
+      className={({ isActive }) => `flex h-12 items-center gap-3 rounded-[10px] px-3 text-[15px] transition-colors ${(ruta === '/almacen' ? esRecepcion : isActive) ? 'bg-[#3730A3] font-semibold text-white' : 'text-[#F3F3FA] hover:bg-white/10'}`}
     >
       <Icon tipo={icono} className="h-[19px] w-[19px] shrink-0 text-[#C8D0FF]" />
       {texto}
@@ -114,6 +115,7 @@ export default function AdminLayout() {
             <p className="px-1 pb-1 pt-[13px] text-xs font-semibold text-[#ABB7EF]">ADMINISTRACIÓN</p>
             {enlace(enlaces[6])}
             <p className="px-1 pb-1 pt-[13px] text-xs font-semibold text-[#ABB7EF]">ALMACÉN</p>
+            {enlace({ ruta: '/almacen', texto: 'Pendientes de recepción', icono: 'sku' })}
             {enlace({ ruta: '/almacen/pendientes-despacho', texto: 'Pendientes de despacho', icono: 'sku' })}
           </nav>
         </aside>
