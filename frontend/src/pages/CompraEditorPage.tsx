@@ -136,7 +136,7 @@ export default function CompraEditorPage() {
         ...cambios, '¿Confirmas la emisión de la orden?'].join('\n')
       if (!window.confirm(resumen)) return
       await confirmarEmision(id, revision.version, origenes)
-      navigate('/compras')
+      navigate('/compras/emitidas')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo emitir la orden.')
     } finally { setOcupado(false) }

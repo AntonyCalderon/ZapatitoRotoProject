@@ -70,7 +70,7 @@ it('permite desistir y reintentar un error sin cambiar la clave ni duplicar la o
 })
 
 it('Compras muestra el indicador y solo habilita confirmación comercial para el lote recibido',async()=>{
- const usuario=userEvent.setup(),fetchMock=abrir('/compras','Compras');vi.spyOn(window,'confirm').mockReturnValue(true)
+ const usuario=userEvent.setup(),fetchMock=abrir('/compras/emitidas','Compras');vi.spyOn(window,'confirm').mockReturnValue(true)
  const tabla=await screen.findByRole('table',{name:'Órdenes emitidas y recepción'})
  const pendiente=within(tabla).getByRole('row',{name:/OC-2026-002/}),recibida=within(tabla).getByRole('row',{name:/OC-2026-001/})
  expect(within(pendiente).getByText('En tránsito')).toBeInTheDocument()

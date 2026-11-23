@@ -20,6 +20,8 @@ import AdminInicio from './pages/AdminInicio'
 import CambiarPasswordPage from './pages/CambiarPasswordPage'
 import UsuariosPage from './pages/UsuariosPage'
 import ComprasBorradoresPage from './pages/ComprasBorradoresPage'
+import ComprasEmitidasPage from './pages/ComprasEmitidasPage'
+import ComprasHistoricoPage from './pages/ComprasHistoricoPage'
 import CompraEditorPage from './pages/CompraEditorPage'
 import PendientesRecepcionPage from './pages/PendientesRecepcionPage'
 import RolRoute from './components/RolRoute'
@@ -92,6 +94,9 @@ function App() {
             {/* HU01: borradores de solicitud de compra, solo rol Compras. */}
             <Route element={<ComprasRoute />}>
               <Route path="/compras" element={<ComprasBorradoresPage />} />
+              <Route path="/compras/emitidas" element={<ComprasEmitidasPage />} />
+              <Route path="/compras/historico" element={<ComprasHistoricoPage />} />
+              <Route path="/compras/historico/:idOrden" element={<ComprasHistoricoPage />} />
             </Route>
           </Route>
         </Route>

@@ -25,8 +25,8 @@ export async function registrarBorrador(idUsuario) {
 }
 
 export async function obtenerBorradores(estado) {
-  if (estado !== undefined && !['BORRADOR', 'EMITIDA', 'CANCELADO'].includes(estado)) {
-    throw errorHttp('Estado inválido. Usa BORRADOR, EMITIDA o CANCELADO.', 400);
+  if (estado !== undefined && !['BORRADOR', 'EMITIDA', 'CANCELADO', 'CERRADO'].includes(estado)) {
+    throw errorHttp('Estado inválido. Usa BORRADOR, EMITIDA, CANCELADO o CERRADO.', 400);
   }
   return listarBorradores(estado ?? null);
 }

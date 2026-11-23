@@ -17,7 +17,7 @@ export function OpIcon({ name, className = '' }: { name: string; className?: str
   return <svg className={`ops-icon ${className}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name] ?? paths.documento} /></svg>
 }
 export function EstadoCompra({ estado }: { estado: string }) {
-  return <span className={`ops-badge ${estado === 'BORRADOR' ? 'ops-badge-draft' : ''}`}>{estado === 'BORRADOR' ? 'Borrador' : estado === 'EMITIDA' ? 'Emitida' : 'Cancelado'}</span>
+  return <span className={`ops-badge ${estado === 'BORRADOR' ? 'ops-badge-draft' : ''}`}>{estado === 'BORRADOR' ? 'Borrador' : estado === 'EMITIDA' ? 'Emitida' : estado === 'CERRADO' ? 'Cerrado' : 'Cancelado'}</span>
 }
 export const fechaCompra = (valor: string) => new Date(valor).toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' })
 const moneda = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' })

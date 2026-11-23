@@ -6,7 +6,7 @@ Almacén abre una compra pendiente, contrasta cada código SKU y la cantidad fí
 
 La recepción registra el usuario autenticado y la fecha del servidor. Compras muestra el indicador verde «Lote verificado y recibido por Almacén», responsable y fecha; entonces habilita Confirmar comercialmente. Esta segunda confirmación registra únicamente `orden_compra.id_usuario_confirma` y `fecha_confirmacion`: no suma stock.
 
-Se conservan los estados comerciales BORRADOR, EMITIDA y CANCELADO. En tránsito y Recibida son situaciones logísticas calculadas, no nuevos estados de la compra. En tránsito significa emitida sin recepción verificada; no implica seguimiento del transportista.
+PROYEC-18 conserva los estados comerciales BORRADOR, EMITIDA y CANCELADO. PROYEC-20 incorpora CERRADO para finalizar y archivar la compra; consultar cierre-compra.md. En tránsito y Recibida son situaciones logísticas calculadas, no nuevos estados de la compra. En tránsito significa emitida sin recepción verificada; no implica seguimiento del transportista.
 
 ## APIs
 
