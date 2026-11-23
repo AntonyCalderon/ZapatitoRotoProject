@@ -29,6 +29,7 @@ import colorRoutes from './modules/colores/color.routes.js';
 import productoSkuRoutes from './modules/productos-sku/productoSku.routes.js';
 import costoAdquisicionRoutes from './modules/compras/costoAdquisicion.routes.js';
 import despachoRoutes from './modules/almacen/despacho.routes.js';
+import salidaRoutes from './modules/almacen/salida.routes.js'; // NUEVO
 
 
 // HU02: selección de modelos, colores y tallas dentro de un borrador de compra.
@@ -79,6 +80,10 @@ app.use('/api/ordenes-compra', ordenCompraRoutes);
 
 // Consultas de existencias y Kardex físico de Almacén.
 app.use('/api/almacen/recepciones', recepcionRoutes);
+
+// HU19: salida física de un despacho pendiente (rol Almacén). // NUEVO
+app.use('/api/almacen/despachos', salidaRoutes); // NUEVO
+
 app.use('/api/almacen', inventarioRoutes);
 
 instalarErroresApi(app);

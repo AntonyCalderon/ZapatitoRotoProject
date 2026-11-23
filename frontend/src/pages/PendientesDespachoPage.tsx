@@ -1,8 +1,10 @@
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState } from 'react' // NUEVO: useEffect y useState
+import { useMutation, useQuery } from '@tanstack/react-query' // NUEVO: useMutation
 import { Link, useParams } from 'react-router-dom'
 import { OpIcon } from '../components/OperacionUI'
 import {
-  consultarDespacho, listarDespachos, type DespachoPendiente, type DetalleDespacho,
+  consultarDespacho, listarDespachos, registrarSalida, // NUEVO: registrarSalida
+  type DespachoPendiente, type DetalleDespacho, type SalidaRegistrada, // NUEVO: SalidaRegistrada
 } from '../services/despachoService'
 import { useAuthStore } from '../store/authStore'
 import { formatearTalla } from '../utils/lineasCompra'
@@ -70,7 +72,19 @@ function Bandeja({ despachos }: { despachos: DespachoPendiente[] }) {
   )
 }
 
-function Pedido({ despacho }: { despacho: DetalleDespacho }) {
+// NUEVO: propiedades para registrar la salida desde el detalle del pedido.
+interface AccionSalida {
+  puedeRegistrar: boolean
+  registrando: boolean
+  error: string
+  onConfirmar: () => void
+}
+
+function Pedido({ despacho, salida }: { despacho: DetalleDespacho; salida: AccionSalida }) {
+  // NUEVO: la confirmación se muestra dentro de la misma pantalla.
+  const [confirmando, setConfirmando] = useState(false)
+  const pares = despacho.productos.reduce((total, producto) => total + producto.cantidad, 0)
+
   return (
     <section className={tarjeta} aria-labelledby="titulo-detalle-despacho">
       <header className="flex flex-wrap items-center justify-between gap-3 px-5 py-5">
@@ -116,6 +130,54 @@ function Pedido({ despacho }: { despacho: DetalleDespacho }) {
           </tbody>
         </table>
       </div>
+
+      {/* NUEVO: HU19. Botón "Registrar salida" con confirmación. Solo para el rol Almacén. */}
+      {salida.puedeRegistrar && despacho.productos.length > 0 && (
+        <div className="space-y-3 border-t border-slate-100 px-5 py-5">
+          {salida.error && (
+            <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-800">{salida.error}</p>
+          )}
+
+          {!confirmando ? (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setConfirmando(true)}
+                disabled={salida.registrando}
+                className="rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                Registrar salida
+              </button>
+            </div>
+          ) : (
+            <div role="group" aria-label="Confirmar salida física" className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm text-amber-900">
+                ¿Confirmas la salida física del despacho <strong>{despacho.codigo}</strong>? Se descontarán{' '}
+                <strong>{pares}</strong> {pares === 1 ? 'par' : 'pares'} del inventario y el pedido quedará
+                despachado. Esta acción no se puede deshacer.
+              </p>
+              <div className="mt-3 flex flex-wrap justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setConfirmando(false)}
+                  disabled={salida.registrando}
+                  className="rounded-lg border border-slate-300 bg-white px-5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setConfirmando(false); salida.onConfirmar() }}
+                  disabled={salida.registrando}
+                  className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                >
+                  {salida.registrando ? 'Registrando...' : 'Confirmar salida'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </section>
   )
 }
@@ -123,12 +185,38 @@ function Pedido({ despacho }: { despacho: DetalleDespacho }) {
 export default function PendientesDespachoPage() {
   const { idDespacho } = useParams()
   const esAdmin = useAuthStore(s => s.user?.roles.includes('Administrador'))
+  // NUEVO: solo el Encargado de Almacén puede registrar la salida (RN-01).
+  const puedeRegistrar = useAuthStore(s => s.user?.roles.includes('Almacen') ?? false)
+  // NUEVO: guarda el resultado cuando la salida ya se registró.
+  const [salidaRegistrada, setSalidaRegistrada] = useState<SalidaRegistrada | null>(null)
+
   const consulta = useQuery<{ despacho: DetalleDespacho } | { despachos: DespachoPendiente[] }>({
     queryKey: ['pendientes-despacho', idDespacho],
     queryFn: ({ signal }) => idDespacho ? consultarDespacho(idDespacho, signal) : listarDespachos(signal),
     retry: false,
     gcTime: 0,
+    // NUEVO: tras registrar la salida el despacho sale de la bandeja; no volvemos a consultarlo.
+    enabled: salidaRegistrada === null,
   })
+
+  // NUEVO: la mutación evita repetir la petición mientras está en curso (doble clic).
+  const registrar = useMutation({
+    mutationFn: (id: number) => registrarSalida(id),
+    onSuccess: datos => setSalidaRegistrada(datos),
+  })
+
+  // NUEVO: al cambiar de despacho se limpian el resultado y el error anteriores.
+  useEffect(() => {
+    setSalidaRegistrada(null)
+    registrar.reset()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idDespacho])
+
+  // NUEVO: separamos el detalle y la bandeja fuera del JSX para que TypeScript
+  // conserve el tipo correcto dentro de las funciones (onConfirmar).
+  const datos = consulta.isSuccess ? consulta.data : undefined
+  const detalle = datos && 'despacho' in datos ? datos.despacho : undefined
+  const bandeja = datos && 'despachos' in datos ? datos.despachos : undefined
 
   return (
     <div className="space-y-4">
@@ -136,16 +224,37 @@ export default function PendientesDespachoPage() {
         {!esAdmin && <h1 className="text-2xl font-bold text-slate-900">Pendientes de despacho</h1>}
         {idDespacho && <Link className={boton} to={rutaCola}>Volver a pendientes</Link>}
       </div>
-      {consulta.isPending && <p role="status" className={`${tarjeta} p-5 text-sm text-slate-600`}>Consultando despachos…</p>}
-      {consulta.isError && (
+
+      {/* NUEVO: confirmación cuando la salida se registró correctamente. */}
+      {salidaRegistrada && (
+        <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+          <p className="font-semibold">{salidaRegistrada.mensaje}</p>
+          <p className="mt-1">
+            Despacho {salidaRegistrada.despacho.codigo}:{' '}
+            {salidaRegistrada.movimientos.reduce((total, m) => total + m.cantidad, 0)} pares descontados del inventario.
+          </p>
+        </div>
+      )}
+
+      {!salidaRegistrada && consulta.isPending && <p role="status" className={`${tarjeta} p-5 text-sm text-slate-600`}>Consultando despachos…</p>}
+      {!salidaRegistrada && consulta.isError && (
         <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl bg-rose-50 p-4 text-sm text-rose-800">
           <p>{consulta.error.message}</p>
           <button className={boton} type="button" onClick={() => void consulta.refetch()}>Reintentar</button>
         </div>
       )}
-      {consulta.isSuccess && ('despacho' in consulta.data
-        ? <Pedido despacho={consulta.data.despacho} />
-        : <Bandeja despachos={consulta.data.despachos} />)}
+      {!salidaRegistrada && detalle && (
+        <Pedido
+          despacho={detalle}
+          salida={{
+            puedeRegistrar,
+            registrando: registrar.isPending,
+            error: registrar.isError ? registrar.error.message : '',
+            onConfirmar: () => registrar.mutate(detalle.id_orden_despacho),
+          }}
+        />
+      )}
+      {!salidaRegistrada && bandeja && <Bandeja despachos={bandeja} />}
     </div>
   )
 }
