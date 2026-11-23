@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { cancelarBorrador, crearBorrador, obtenerBorradores, obtenerEmitidas, type OrdenCompra } from '../services/ordenCompraService'
+import { cancelarBorrador, crearBorrador, obtenerBorradores, type OrdenCompra } from '../services/ordenCompraService'
 import { EstadoCompra, fechaCompra, OpIcon } from '../components/OperacionUI'
-import OrdenesEmitidas from '../components/OrdenesEmitidas'
+
 
 export default function ComprasBorradoresPage() {
   const navigate = useNavigate()
@@ -19,13 +19,6 @@ export default function ComprasBorradoresPage() {
     let activo = true
     setCargando(true); setError('')
     obtenerBorradores().then(datos => { if (activo) setOrdenes(datos) }).catch(e => { if (activo) setError(e instanceof Error ? e.message : 'No se pudieron cargar las solicitudes.') }).finally(() => { if (activo) setCargando(false) })
-    return () => { activo = false }
-  }, [intento])
-  const [emitidas, setEmitidas] = useState<Awaited<ReturnType<typeof obtenerEmitidas>>>([])
-  useEffect(() => {
-    let activo = true
-    obtenerEmitidas().then(items => { if (activo) setEmitidas(items) })
-      .catch(e => { if (activo) setError(e.message) })
     return () => { activo = false }
   }, [intento])
   useEffect(() => {
@@ -65,6 +58,5 @@ export default function ComprasBorradoresPage() {
       </tbody></table></div>
       <div className="ops-table-footer">{cargando ? 'Consultando…' : `${filtradas.length} de ${ordenes.length} solicitudes`}</div>
     </section>
-    {emitidas.length > 0 && <OrdenesEmitidas ordenes={emitidas} actualizar={() => setIntento(n => n + 1)} />}
   </>
 }

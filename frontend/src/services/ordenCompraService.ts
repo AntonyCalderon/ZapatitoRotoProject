@@ -5,7 +5,7 @@
 
 export interface OrdenCompra {
   id_orden_compra: number
-  estado: 'BORRADOR' | 'EMITIDA' | 'CANCELADO'
+  estado: 'BORRADOR' | 'EMITIDA' | 'CANCELADO' | 'CERRADO'
   proveedor?: string | null
   codigo?: string | null
   subtotal?: string | null
@@ -46,6 +46,17 @@ export interface OrdenEmitida {
   id_recepcion:number|null; usuario_almacen:string|null; fecha_recepcion:string|null;
   usuario_confirma:string|null; fecha_confirmacion:string|null;
 }
+export interface OrdenCerrada extends Omit<OrdenEmitida, 'estado'> {
+  estado:'CERRADO'; usuario_cierre:string; fecha_cierre:string;
+}
+export interface DetalleCompraCerrada extends OrdenCerrada {
+  fecha_emision:string; total:string;
+  documento_emitido: { proveedor?:{razon_social:string}; pares:number;
+    lineas:{codigo_sku:string;nombre_modelo:string;nombre_color:string;numero_talla:string|number;cantidad:number}[] }
+}
+export const obtenerHistoricoCompras = () => solicitudCompra<OrdenCerrada[]>('historico')
+export const consultarCompraCerrada = (id:number) => solicitudCompra<{orden:DetalleCompraCerrada}>('historico/' + id)
+export const cerrarOrdenCompra = (id:number) => solicitudCompra<{mensaje:string;orden:OrdenCerrada;repetida:boolean}>(id + '/cierre', {method:'POST'})
 export const obtenerEmitidas = () => solicitudCompra<OrdenEmitida[]>('emitidas')
 export const confirmarCompraComercialmente = (id:number) =>
   solicitudCompra<{mensaje:string;orden:OrdenEmitida}>(id + '/confirmacion', {method:'POST'})

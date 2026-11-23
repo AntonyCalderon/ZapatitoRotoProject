@@ -30,7 +30,8 @@ try{
   INSERT INTO modelo VALUES(1,'Threshold');INSERT INTO color VALUES(1,'Negro');INSERT INTO talla VALUES(1,40);
   INSERT INTO producto_sku VALUES(1,'THR-NEG-40',1,1,1),(2,'SKU-QA-2',1,1,1),(3,'SKU-QA-3',1,1,1);
   CREATE TABLE orden_compra(id_orden_compra INTEGER PRIMARY KEY,codigo TEXT,estado TEXT,id_proveedor INTEGER,
-    fecha_emision TIMESTAMPTZ DEFAULT now(),documento_emitido JSONB DEFAULT '{}',id_usuario_confirma INTEGER,fecha_confirmacion TIMESTAMPTZ);
+    fecha_emision TIMESTAMPTZ DEFAULT now(),documento_emitido JSONB DEFAULT '{}',id_usuario_confirma INTEGER,fecha_confirmacion TIMESTAMPTZ,id_usuario_cierre INTEGER REFERENCES usuario,fecha_cierre TIMESTAMPTZ,total NUMERIC DEFAULT 100,
+    CONSTRAINT orden_compra_estado_check CHECK(estado IN ('BORRADOR','EMITIDA','CANCELADO')));
   INSERT INTO orden_compra(id_orden_compra,codigo,estado,id_proveedor) VALUES
     (1,'OC-QA-001','EMITIDA',1),(2,'OC-QA-002','EMITIDA',1),(3,'OC-QA-003','BORRADOR',1),
     (4,'OC-QA-004','EMITIDA',1),(5,'OC-QA-005','EMITIDA',1),(6,'OC-QA-006','EMITIDA',1),(7,'OC-QA-007','EMITIDA',1);
@@ -42,7 +43,7 @@ try{
   CREATE TABLE detalle_orden_venta(id_orden_venta INTEGER,id_sku INTEGER,cantidad INTEGER);
   INSERT INTO recepcion_compra(id_orden_compra,id_usuario_almacen) VALUES(6,1);
  `);
- for(const file of ['013_inventario_kardex.sql','014_stock_minimo_cinco.sql','015_verificacion_recepcion.sql'])
+ for(const file of ['013_inventario_kardex.sql','014_stock_minimo_cinco.sql','015_verificacion_recepcion.sql','016_cierre_orden_compra.sql'])
    await admin.query(readFileSync(new URL('../../database/migration/'+file,import.meta.url),'utf8'));
  pool.connect=async()=>{const c=await connect();await c.query(`SET search_path TO ${schema},public`);return c;};
  pool.query=async(sql,values)=>{const c=await pool.connect();try{return await c.query(sql,values);}finally{c.release();}};
@@ -93,7 +94,42 @@ try{
  assert.deepEqual(respuestas.map(r=>r.status).sort(),[201,409]);n+=2;
  const reconciliacion=await admin.query(`SELECT s.id_sku FROM stock_sku s LEFT JOIN kardex_movimiento k USING(id_sku) GROUP BY s.id_sku,s.cantidad_actual HAVING s.cantidad_actual<>COALESCE(sum(k.cantidad),0)`);
  assert.equal(reconciliacion.rowCount,0);
- console.log(`${n} peticiones verificadas: recepción completa, roles, reintentos, concurrencia, rollback, indicador y confirmación comercial sin sumar stock.`);
+
+ // PROYEC-20: cierre independiente del stock, con auditoría y lectura histórica.
+ const cierre=(id,status=200,usuario=2)=>pedir('/api/ordenes-compra/'+id+'/cierre',usuario,status,{});
+ await cierre(1,401,0);await cierre(1,403,1);await cierre(1,403,3);
+ await pedir('/api/ordenes-compra/historico',1,403);
+ await cierre('invalido',400);await cierre(999,404);await cierre(3,409);
+ await cierre(2,409);await cierre(4,409);
+ await admin.query('UPDATE orden_compra SET id_usuario_confirma=2,fecha_confirmacion=now() WHERE id_orden_compra=6');
+ await cierre(6,409); // Una cabecera sin entradas físicas no acredita la recepción.
+ assert.deepEqual(await pedir('/api/ordenes-compra/historico',2),[]);
+ await pedir('/api/ordenes-compra/historico/1',2,404);
+ const documento={proveedor:{razon_social:'Proveedor QA',ruc:'00000000000',direccion:'Dirección QA'},pares:13,
+   lineas:[{codigo_sku:'THR-NEG-40',nombre_modelo:'Threshold',nombre_color:'Negro',numero_talla:40,cantidad:6,costo:'10',importe:'60'}]};
+ await admin.query('UPDATE orden_compra SET documento_emitido=$1 WHERE id_orden_compra=1',[documento]);
+ const saldosAntesCierre=await stocks();
+ const movimientosAntesCierre=(await admin.query('SELECT * FROM kardex_movimiento ORDER BY id_movimiento')).rows;
+ const respuestasCierre=await Promise.all([cierre(1),cierre(1)]);
+ assert.deepEqual(respuestasCierre.map(r=>r.repetida).sort(),[false,true]);
+ const cerrada=respuestasCierre[0].orden;
+ assert.equal(cerrada.estado,'CERRADO');assert.equal(cerrada.usuario_cierre,'Comprador QA');assert.ok(cerrada.fecha_cierre);
+ const otraVez=await cierre(1);assert.equal(otraVez.orden.fecha_cierre,cerrada.fecha_cierre);
+ assert.deepEqual(await stocks(),saldosAntesCierre);
+ assert.deepEqual((await admin.query('SELECT * FROM kardex_movimiento ORDER BY id_movimiento')).rows,movimientosAntesCierre);
+ const historico=await pedir('/api/ordenes-compra/historico',2);
+ assert.equal(historico.length,1);assert.equal(historico[0].codigo,'OC-QA-001');
+ assert.ok(!(await pedir('/api/ordenes-compra/emitidas',2)).some(o=>o.id_orden_compra===1));
+ const detalleHistorico=await pedir('/api/ordenes-compra/historico/1',2);
+ assert.deepEqual(detalleHistorico.orden.documento_emitido,documento);
+ const pdf=await fetch(url+'/api/ordenes-compra/1/pdf',{headers:{'x-test-session':'2'}});
+ assert.equal(pdf.status,200);assert.match(pdf.headers.get('content-type'),/application\/pdf/);assert.ok((await pdf.text()).startsWith('%PDF'));n++;
+ await comercial(1,409);
+ await assert.rejects(admin.query("UPDATE orden_compra SET estado='EMITIDA' WHERE id_orden_compra=1"),e=>e.code==='23514');
+ await assert.rejects(admin.query("UPDATE orden_compra SET documento_emitido='{}' WHERE id_orden_compra=1"),e=>e.code==='23514');
+ await assert.rejects(admin.query("UPDATE orden_compra SET estado='CERRADO',id_usuario_cierre=2,fecha_cierre=now() WHERE id_orden_compra=4"),e=>e.code==='23514');
+ console.log(n+' peticiones verificadas: recepción, roles, concurrencia, rollback, cierre, histórico, PDF y conservación íntegra del stock.');
+
 }finally{
  if(server)await new Promise(resolve=>server.close(resolve));pool.connect=connect;pool.query=query;
  await admin.query('RESET search_path');if(creado)await admin.query(`DROP SCHEMA ${schema} CASCADE`);admin.release();await pool.end();
