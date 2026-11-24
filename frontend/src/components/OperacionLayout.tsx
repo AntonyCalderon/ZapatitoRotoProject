@@ -52,7 +52,7 @@ export default function OperacionLayout() {
       <nav aria-label="Navegación de operaciones">
         {disponibles.map(m => (
           <NavLink
-            key={m.ruta} to={m.ruta} end={m.rol === 'Compras' && /^\/compras\/(?:emitidas|historico)(?:\/|$)/.test(pathname) || m.rol === 'Almacen' && enOtraSeccionAlmacen} onClick={navegar}
+            key={m.ruta} to={m.ruta} end={m.rol === 'Compras' && /^\/compras\/(?:emitidas|historico)(?:\/|$)/.test(pathname) || m.rol === 'Almacen' && enOtraSeccionAlmacen || m.rol === 'Ventas'} onClick={navegar}
             className={({ isActive }) => `ops-nav-link ${isActive || pathname === '/inicio' && actual === m ? 'is-active' : ''}`}
           >
             <OpIcon name={m.icono} />{m.rol === 'Almacen' ? 'Pendientes de recepción' : m.titulo}
@@ -62,6 +62,10 @@ export default function OperacionLayout() {
           <NavLink to="/compras/emitidas" onClick={navegar} className={({ isActive }) => `ops-nav-link ${isActive ? 'is-active' : ''}`}><OpIcon name="documento" />Órdenes emitidas</NavLink>
           <NavLink to="/compras/historico" onClick={navegar} className={({ isActive }) => `ops-nav-link ${isActive ? 'is-active' : ''}`}><OpIcon name="reloj" />Histórico</NavLink>
         </>}
+        {user?.roles.includes('Ventas') &&
+          <NavLink to="/ventas/precios" onClick={navegar} className={({ isActive }) => `ops-nav-link ${isActive ? 'is-active' : ''}`}>
+            <OpIcon name="documento" />Precios de venta
+          </NavLink>}
         {user?.roles.includes('Almacen') && <>
           <NavLink
             to="/almacen/pendientes-despacho"
