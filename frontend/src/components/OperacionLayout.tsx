@@ -62,10 +62,14 @@ export default function OperacionLayout() {
           <NavLink to="/compras/emitidas" onClick={navegar} className={({ isActive }) => `ops-nav-link ${isActive ? 'is-active' : ''}`}><OpIcon name="documento" />Órdenes emitidas</NavLink>
           <NavLink to="/compras/historico" onClick={navegar} className={({ isActive }) => `ops-nav-link ${isActive ? 'is-active' : ''}`}><OpIcon name="reloj" />Histórico</NavLink>
         </>}
-        {user?.roles.includes('Ventas') &&
+        {user?.roles.includes('Ventas') && <>
+          <NavLink to="/ventas/disponibilidad" onClick={navegar} className={({ isActive }) => `ops-nav-link ${isActive ? 'is-active' : ''}`}>
+            <OpIcon name="buscar" />Disponibilidad
+          </NavLink>
           <NavLink to="/ventas/precios" onClick={navegar} className={({ isActive }) => `ops-nav-link ${isActive ? 'is-active' : ''}`}>
             <OpIcon name="documento" />Precios de venta
-          </NavLink>}
+          </NavLink>
+        </>}
         {user?.roles.includes('Almacen') && <>
           <NavLink
             to="/almacen/pendientes-despacho"

@@ -48,6 +48,18 @@ export async function listarProductosVenta(signal: AbortSignal) {
   return (await solicitar<{ productos: ProductoParaVenta[] }>('/productos', { signal })).productos
 }
 
+export async function consultarDisponibilidadVenta(idSku: string, signal: AbortSignal) {
+  return (await solicitar<{ producto: ProductoParaVenta }>(
+    '/productos/' + encodeURIComponent(idSku) + '/disponibilidad', { signal }
+  )).producto
+}
+
+export async function actualizarPreciosBorrador(idOrden: string) {
+  return (await solicitar<{ borrador: PreciosBorrador }>(rutaBorrador(idOrden) + '/recalcular', {
+    method: 'POST',
+  })).borrador
+}
+
 export async function consultarPreciosBorrador(idOrden: string, signal: AbortSignal) {
   return (await solicitar<{ borrador: PreciosBorrador }>(rutaBorrador(idOrden), { signal })).borrador
 }

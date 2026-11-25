@@ -14,6 +14,7 @@ const desdeCatalogo = `
     JOIN orden_venta v ON v.id_orden_venta = d.id_orden_venta
     WHERE d.id_sku = p.id_sku AND v.estado = 'Pendiente'
   ) reservado ON true`;
+// Las ventas Pendiente comprometen pares hasta la salida física; los borradores no reservan.
 const stockDisponible = 'GREATEST(COALESCE(s.cantidad_actual, 0) - COALESCE(reservado.cantidad, 0), 0)::integer';
 const columnasProducto = `p.id_sku, p.codigo_sku, m.id_modelo, m.nombre_modelo AS modelo,
   co.id_color, co.nombre_color AS color, t.id_talla, t.numero_talla::text AS talla,
@@ -28,6 +29,14 @@ export async function listarProductosParaPrecios(conexion = pool) {
     WHERE ${catalogoActivo}
     ORDER BY m.nombre_modelo, co.nombre_color, t.numero_talla, p.id_sku`);
   return rows;
+}
+
+export async function consultarDisponibilidadVenta(idSku, conexion = pool) {
+  const { rows: [producto] } = await conexion.query(`
+    SELECT ${columnasProducto}
+    ${desdeCatalogo}
+    WHERE p.id_sku = $1 AND ${catalogoActivo}`, [idSku]);
+  return producto ?? null;
 }
 
 export async function listarBorradoresParaPrecios(idVendedor, conexion = pool) {

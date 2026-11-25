@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { autorizarRoles, requerirAutenticacion } from '../../middlewares/autorizarRoles.js';
-import { listarBorradoresParaPrecios, listarProductosParaPrecios, resolverPreciosBorrador } from './precioVenta.repository.js';
+import {
+  consultarDisponibilidadVenta, listarBorradoresParaPrecios, listarProductosParaPrecios, resolverPreciosBorrador
+} from './precioVenta.repository.js';
 
 const router = Router();
 router.use(requerirAutenticacion, autorizarRoles('Ventas'), (_req, res, next) => {
@@ -14,6 +16,14 @@ const idRuta = valor => /^\d+$/.test(valor) ? Number(valor) : NaN;
 router.get('/productos', async (_req, res) => {
   res.json({ productos: await listarProductosParaPrecios() });
 });
+router.get('/productos/:idSku/disponibilidad', async (req, res) => {
+  const idSku = idRuta(req.params.idSku);
+  if (!enteroPositivo(idSku)) return res.status(400).json({ mensaje: 'El SKU indicado no es válido.' });
+  const producto = await consultarDisponibilidadVenta(idSku);
+  if (!producto) return res.status(404).json({ mensaje: 'El SKU no está disponible en el catálogo.' });
+  return res.json({ producto });
+});
+
 router.get('/borradores', async (req, res) => {
   res.json({ borradores: await listarBorradoresParaPrecios(req.usuario.id_usuario) });
 });
@@ -23,7 +33,7 @@ function responderBorrador(status, obtenerCambio = () => undefined) {
     const idOrden = idRuta(req.params.idOrden);
     if (!enteroPositivo(idOrden)) return res.status(400).json({ mensaje: 'La venta indicada no es válida.' });
     const cambio = obtenerCambio(req);
-    if (cambio && (!enteroPositivo(cambio.idSku) || cambio.tipo === 'agregar' && !enteroPositivo(cambio.cantidad))) {
+    if (cambio && cambio.tipo !== 'recalcular' && (!enteroPositivo(cambio.idSku) || cambio.tipo === 'agregar' && !enteroPositivo(cambio.cantidad))) {
       return res.status(400).json({ mensaje: 'Selecciona un SKU e ingresa una cantidad entera mayor que cero.' });
     }
     try {
@@ -37,6 +47,7 @@ function responderBorrador(status, obtenerCambio = () => undefined) {
 }
 
 router.get('/borradores/:idOrden', responderBorrador(200));
+router.post('/borradores/:idOrden/recalcular', responderBorrador(200, () => ({ tipo: 'recalcular' })));
 router.post('/borradores/:idOrden/lineas', responderBorrador(201, ({ body }) => ({
   tipo: 'agregar', idSku: body?.id_sku, cantidad: body?.cantidad
 })));

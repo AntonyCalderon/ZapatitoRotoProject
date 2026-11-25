@@ -27,6 +27,7 @@ function renderRutas(ruta = '/inicio') {
       <Routes>
         <Route element={<AdminLayout />}>
           <Route path="/inicio" element={<InicioRoute />} />
+          <Route path="/ventas" element={<h1>Nueva venta</h1>} />
           <Route element={<AdminRoute />}>
             <Route path="/modelos" element={<p>Formulario de modelos</p>} />
             <Route path="/usuarios" element={<p>Administración de trabajadores</p>} />
@@ -75,7 +76,7 @@ describe('Panel de Administración', () => {
     useAuthStore.setState({ user: { ...administrador, roles: ['Ventas'] } })
     renderRutas('/modelos')
     expect(screen.queryByRole('navigation', { name: 'Navegación administrativa' })).not.toBeInTheDocument()
-    expect(screen.getByText('¡Hola, Ana!')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Nueva venta' })).toBeInTheDocument()
   })
 
   it('mantiene el menú y destaca Gestión de Usuarios', () => {
@@ -88,6 +89,6 @@ describe('Panel de Administración', () => {
     useAuthStore.setState({ user: { ...administrador, roles: ['Ventas'] } })
     renderRutas('/usuarios')
     expect(screen.queryByText('Administración de trabajadores')).not.toBeInTheDocument()
-    expect(screen.getByText('¡Hola, Ana!')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Nueva venta' })).toBeInTheDocument()
   })
 })
