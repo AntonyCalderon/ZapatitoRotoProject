@@ -27,6 +27,7 @@ import PendientesRecepcionPage from './pages/PendientesRecepcionPage'
 import RolRoute from './components/RolRoute'
 import ExistenciasPage from './pages/ExistenciasPage'
 import KardexDetallePage from './pages/KardexDetallePage'
+import DisponibilidadVentaPage from './pages/DisponibilidadVentaPage'
 import VentaClientePage from './pages/VentaClientePage'
 import VentaPreciosPage from './pages/VentaPreciosPage'
 
@@ -34,7 +35,12 @@ export function InicioRoute() {
   const esAdministrador = useAuthStore((state) => state.user?.roles.includes('Administrador') ?? false)
   const esCompras = useAuthStore((state) => state.user?.roles.includes('Compras') ?? false)
   const esAlmacen = useAuthStore(s => s.user?.roles.includes('Almacen'))
-  return esAdministrador ? <AdminInicio /> : esCompras ? <Navigate to="/compras" replace /> : esAlmacen ? <Navigate to="/almacen" replace /> : <Home />
+  const esVentas = useAuthStore(s => s.user?.roles.includes('Ventas'))
+  if (esAdministrador) return <AdminInicio />
+  if (esCompras) return <Navigate to="/compras" replace />
+  if (esAlmacen) return <Navigate to="/almacen" replace />
+  if (esVentas) return <Navigate to="/ventas" replace />
+  return <Home />
 }
 
 function App() {
@@ -68,6 +74,7 @@ function App() {
 
             <Route element={<RolRoute rol="Ventas" />}>
               <Route path="/ventas" element={<VentaClientePage />} />
+              <Route path="/ventas/disponibilidad" element={<DisponibilidadVentaPage />} />
               <Route path="/ventas/borradores/:id/cliente" element={<VentaClientePage />} />
               <Route path="/ventas/precios/:idOrden?" element={<VentaPreciosPage />} />
             </Route>

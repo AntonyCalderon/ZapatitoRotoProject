@@ -56,7 +56,13 @@ async function guardar(req, res) {
         return res.status(rows.length ? 409 : 404).json({ mensaje: 'Solo puedes editar tus ventas en borrador.' });
       }
     }
-    const {rows:[clasificacion]} = await db.query('SELECT id_tipo_cliente FROM tipo_cliente WHERE nombre=$1',[tipo]);
+    const { rows: [clasificacion] } = await db.query(
+      'SELECT id_tipo_cliente FROM tipo_cliente WHERE nombre = $1', [tipo]
+    );
+    if (!clasificacion) {
+      await db.query('ROLLBACK');
+      return res.status(409).json({ mensaje: 'El tipo de cliente no está disponible en el catálogo.' });
+    }
     const tipoId = clasificacion.id_tipo_cliente;
     await db.query(`INSERT INTO cliente(id_tipo_cliente,tipo_documento,numero_documento,razon_social_nombre)
       VALUES($1,$2,$3,$4) ON CONFLICT(numero_documento) DO NOTHING`,

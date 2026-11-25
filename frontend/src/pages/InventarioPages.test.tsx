@@ -161,6 +161,6 @@ it('excluye Almacén de Administración y bloquea Kardex para otros roles', asyn
   expect(adminFetch.mock.calls.some(([url]) => url.startsWith('/api/almacen'))).toBe(false)
   cleanup(); useAuthStore.setState({ user: null })
   const fetchMock = abrir({ rol: 'Ventas' })
-  expect(await screen.findByRole('heading', { name: 'Ventas' })).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { name: 'Nueva venta' })).toBeInTheDocument()
   expect(fetchMock.mock.calls.some(([url]) => url.startsWith('/api/almacen'))).toBe(false)
 })

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { fechaCompra, OpIcon, soles } from '../components/OperacionUI'
 import {
-  agregarLineaVenta, consultarPreciosBorrador, listarBorradoresVenta, listarProductosVenta, quitarLineaVenta,
+  actualizarPreciosBorrador, agregarLineaVenta, consultarPreciosBorrador, listarBorradoresVenta, listarProductosVenta, quitarLineaVenta,
   type PreciosBorrador, type ProductoParaVenta,
 } from '../services/precioVentaService'
 import { useAuthStore } from '../store/authStore'
@@ -115,6 +115,11 @@ function SelectorProducto({ productos, ocupado, agregar }: {
   </form>
 }
 
+type CambioVenta =
+  | { tipo: 'recalcular' }
+  | { tipo: 'agregar'; idSku: number; cantidad: number }
+  | { tipo: 'quitar'; idSku: number }
+
 function EditorPrecios({ vendedor, idOrden }: { vendedor: number | undefined; idOrden: string }) {
   const client = useQueryClient()
   const claveBorrador = ['ventas', vendedor, 'precios', idOrden]
@@ -127,9 +132,13 @@ function EditorPrecios({ vendedor, idOrden }: { vendedor: number | undefined; id
     queryFn: ({ signal }) => consultarPreciosBorrador(idOrden, signal),
   })
   const cambio = useMutation({
-    mutationFn: (operacion: { idSku: number; cantidad?: number }) => operacion.cantidad === undefined
-      ? quitarLineaVenta(idOrden, operacion.idSku)
-      : agregarLineaVenta(idOrden, operacion.idSku, operacion.cantidad),
+    mutationFn: (operacion: CambioVenta) => {
+      switch (operacion.tipo) {
+        case 'recalcular': return actualizarPreciosBorrador(idOrden)
+        case 'agregar': return agregarLineaVenta(idOrden, operacion.idSku, operacion.cantidad)
+        case 'quitar': return quitarLineaVenta(idOrden, operacion.idSku)
+      }
+    },
     onMutate: () => client.cancelQueries({ queryKey: claveBorrador }),
     onSuccess: borrador => client.setQueryData(claveBorrador, borrador),
     onSettled: () => { void productos.refetch() },
@@ -139,8 +148,10 @@ function EditorPrecios({ vendedor, idOrden }: { vendedor: number | undefined; id
   return <>
     <div className="ops-page-heading">
       <h1>Precios del borrador #{idOrden}</h1>
-      <Link className="ops-btn" to={`/ventas/borradores/${idOrden}/cliente`}>Cambiar cliente</Link>
-      <Link className="ops-btn" to={rutaPrecios}>Volver a borradores</Link>
+      <div className="flex flex-wrap gap-2">
+        <Link className="ops-btn" to={`/ventas/borradores/${idOrden}/cliente`}>Cambiar cliente</Link>
+        <Link className="ops-btn" to={rutaPrecios}>Volver a borradores</Link>
+      </div>
     </div>
     {consulta.isPending && <p role="status" className="ops-loading">Cargando venta…</p>}
     {consulta.isError && <p role="alert" className="ops-alert ops-alert-error">{consulta.error.message}
@@ -155,7 +166,9 @@ function EditorPrecios({ vendedor, idOrden }: { vendedor: number | undefined; id
         <div className="flex flex-wrap items-center gap-2">
           <span className="ops-badge ops-badge-draft">Borrador</span>
           <button className="ops-btn ops-btn-small" disabled={cambio.isPending || consulta.isFetching}
-            onClick={() => { void consulta.refetch(); void productos.refetch() }}>Actualizar precios</button>
+            onClick={() => cambio.mutate({ tipo: 'recalcular' })}>
+            {cambio.isPending && cambio.variables?.tipo === 'recalcular' ? 'Actualizando…' : 'Actualizar precios'}
+          </button>
         </div>
       </div>
       {productos.isPending && <p className="ops-loading" role="status">Cargando productos…</p>}
@@ -163,8 +176,8 @@ function EditorPrecios({ vendedor, idOrden }: { vendedor: number | undefined; id
         <button className="ops-text-button" onClick={() => void productos.refetch()}>Reintentar</button>
       </p>}
       {productos.data && <SelectorProducto productos={productos.data} ocupado={cambio.isPending}
-        agregar={(idSku, cantidad) => cambio.mutateAsync({ idSku, cantidad })} />}
-      {cambio.isError && cambio.variables?.cantidad === undefined &&
+        agregar={(idSku, cantidad) => cambio.mutateAsync({ tipo: 'agregar', idSku, cantidad })} />}
+      {cambio.isError && cambio.variables?.tipo !== 'agregar' &&
         <p className="ops-alert ops-alert-error" role="alert">{cambio.error.message}</p>}
       {venta.lineas.length === 0 ? <div className="ops-empty-state"><p>Agrega un producto para calcular su precio.</p></div> :
         <div className="ops-table-scroll">
@@ -177,7 +190,7 @@ function EditorPrecios({ vendedor, idOrden }: { vendedor: number | undefined; id
               <td>{linea.color}</td><td>{formatearTalla(linea.talla)}</td><td>{linea.cantidad}</td>
               <td>{soles(linea.precio_con_igv)}</td><td>{soles(linea.importe)}</td>
               <td><button className="ops-btn ops-btn-small" disabled={cambio.isPending}
-                aria-label={`Quitar ${linea.codigo_sku}`} onClick={() => cambio.mutate({ idSku: linea.id_sku })}>
+                aria-label={`Quitar ${linea.codigo_sku}`} onClick={() => cambio.mutate({ tipo: 'quitar', idSku: linea.id_sku })}>
                 <OpIcon name="quitar" />Quitar
               </button></td>
             </tr>)}</tbody>
