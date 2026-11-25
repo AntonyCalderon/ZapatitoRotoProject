@@ -35,7 +35,7 @@ export async function listarBorradoresParaPrecios(idVendedor, conexion = pool) {
     SELECT v.id_orden_venta, v.fecha_creacion, c.razon_social_nombre AS cliente, tc.segmento
     FROM orden_venta v
     JOIN cliente c ON c.id_cliente = v.id_cliente
-    JOIN tipo_cliente tc ON tc.id_tipo_cliente = c.id_tipo_cliente
+    JOIN tipo_cliente tc ON tc.id_tipo_cliente = COALESCE(v.id_tipo_cliente,c.id_tipo_cliente)
     WHERE v.id_usuario_vendedor = $1 AND v.estado = 'Borrador'
     ORDER BY v.fecha_creacion DESC, v.id_orden_venta DESC`, [idVendedor]);
   return rows;
@@ -56,7 +56,7 @@ async function consultarConfiguracion(conexion, idOrden) {
            ps.valor::numeric(5,4)::text AS tasa, mu.porcentaje::text AS margen
     FROM orden_venta v
     JOIN cliente c ON c.id_cliente = v.id_cliente
-    JOIN tipo_cliente tc ON tc.id_tipo_cliente = c.id_tipo_cliente
+    JOIN tipo_cliente tc ON tc.id_tipo_cliente = COALESCE(v.id_tipo_cliente,c.id_tipo_cliente)
     LEFT JOIN margen_utilidad mu ON mu.segmento = tc.segmento
     LEFT JOIN parametro_sistema ps ON ps.clave = 'IGV_TASA'
     WHERE v.id_orden_venta = $1`, [idOrden]);
@@ -144,32 +144,9 @@ export async function resolverPreciosBorrador(idOrden, idVendedor, cambio, base 
       if (eliminada.rowCount === 0) throw errorVenta(404, 'El producto indicado no está en el borrador.');
     }
 
-    const configuracion = await consultarConfiguracion(conexion, idOrden);
-    const lineas = await calcularLineas(conexion, idOrden, configuracion);
-    if (cambio?.tipo === 'agregar') {
-      const nueva = lineas.find(linea => linea.id_sku === cambio.idSku);
-      if (nueva.motivo) throw errorVenta(409, nueva.motivo);
-    }
-
-    // Se comparte el redondeo de soles e IGV de Compras para sumar importes exactos.
-    const resumen = calcularCostoAdquisicion(lineas.map(linea => ({
-      cantidad: linea.cantidad,
-      costoUnitario: linea.precio_unitario
-    })), configuracion.tasa ?? '0');
-    const totales = configuracion.tasa === null || resumen.total === null
-      ? { subtotal: null, igv: null, total: null }
-      : { subtotal: resumen.subtotalConocido, igv: resumen.igv, total: resumen.total };
-
-    if (cambio) await guardarCalculo(conexion, idOrden, configuracion, lineas, totales);
+    const resultado = await recalcularPreciosVenta(conexion, idOrden, Boolean(cambio), cambio);
     await conexion.query('COMMIT');
-    return {
-      id_orden_venta: configuracion.id_orden_venta,
-      cliente: configuracion.cliente,
-      segmento: configuracion.segmento,
-      lineas: lineas.map(({ id_sku, codigo_sku, modelo, color, talla, cantidad, motivo, precio_con_igv, importe }) =>
-        ({ id_sku, codigo_sku, modelo, color, talla, cantidad, motivo, precio_con_igv, importe })),
-      ...totales
-    };
+    return resultado;
   } catch (error) {
     await conexion.query('ROLLBACK');
     if (error.code === '22003') throw errorVenta(409, 'El importe calculado supera el límite de la venta. Reduce la cantidad.');
@@ -178,4 +155,32 @@ export async function resolverPreciosBorrador(idOrden, idVendedor, cambio, base 
   } finally {
     conexion.release();
   }
+}
+
+export async function recalcularPreciosVenta(conexion, idOrden, persistir = true, cambio) {
+  const configuracion = await consultarConfiguracion(conexion, idOrden);
+  const lineas = await calcularLineas(conexion, idOrden, configuracion);
+  if (cambio?.tipo === 'agregar') {
+    const nueva = lineas.find(linea => linea.id_sku === cambio.idSku);
+    if (nueva.motivo) throw errorVenta(409, nueva.motivo);
+  }
+
+  // Se comparte el redondeo de soles e IGV de Compras para sumar importes exactos.
+  const resumen = calcularCostoAdquisicion(lineas.map(linea => ({
+    cantidad: linea.cantidad,
+    costoUnitario: linea.precio_unitario
+  })), configuracion.tasa ?? '0');
+  const totales = configuracion.tasa === null || resumen.total === null
+    ? { subtotal: null, igv: null, total: null }
+    : { subtotal: resumen.subtotalConocido, igv: resumen.igv, total: resumen.total };
+
+  if (persistir) await guardarCalculo(conexion, idOrden, configuracion, lineas, totales);
+  return {
+    id_orden_venta: configuracion.id_orden_venta,
+    cliente: configuracion.cliente,
+    segmento: configuracion.segmento,
+    lineas: lineas.map(({ id_sku, codigo_sku, modelo, color, talla, cantidad, motivo, precio_con_igv, importe }) =>
+      ({ id_sku, codigo_sku, modelo, color, talla, cantidad, motivo, precio_con_igv, importe })),
+    ...totales
+  };
 }

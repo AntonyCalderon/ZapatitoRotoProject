@@ -139,6 +139,7 @@ function EditorPrecios({ vendedor, idOrden }: { vendedor: number | undefined; id
   return <>
     <div className="ops-page-heading">
       <h1>Precios del borrador #{idOrden}</h1>
+      <Link className="ops-btn" to={`/ventas/borradores/${idOrden}/cliente`}>Cambiar cliente</Link>
       <Link className="ops-btn" to={rutaPrecios}>Volver a borradores</Link>
     </div>
     {consulta.isPending && <p role="status" className="ops-loading">Cargando venta…</p>}
