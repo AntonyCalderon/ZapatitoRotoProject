@@ -30,6 +30,7 @@ import KardexDetallePage from './pages/KardexDetallePage'
 import DisponibilidadVentaPage from './pages/DisponibilidadVentaPage'
 import VentaClientePage from './pages/VentaClientePage'
 import VentaPreciosPage from './pages/VentaPreciosPage'
+import VentasConfirmadasPage from './pages/VentasConfirmadasPage'
 
 export function InicioRoute() {
   const esAdministrador = useAuthStore((state) => state.user?.roles.includes('Administrador') ?? false)
@@ -77,6 +78,8 @@ function App() {
               <Route path="/ventas/disponibilidad" element={<DisponibilidadVentaPage />} />
               <Route path="/ventas/borradores/:id/cliente" element={<VentaClientePage />} />
               <Route path="/ventas/precios/:idOrden?" element={<VentaPreciosPage />} />
+              {/* HU14 y HU15: comprobante de pago y envío a despacho. */}
+              <Route path="/ventas/confirmadas/:idVenta?" element={<VentasConfirmadasPage />} />
             </Route>
             <Route element={<RolRoute rol="Almacen" />}>
               <Route path="/almacen" element={<PendientesRecepcionPage />} />

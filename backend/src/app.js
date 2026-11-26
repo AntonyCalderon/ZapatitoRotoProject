@@ -31,6 +31,7 @@ import costoAdquisicionRoutes from './modules/compras/costoAdquisicion.routes.js
 import despachoRoutes from './modules/almacen/despacho.routes.js';
 import clienteVentaRoutes from './modules/ventas/clienteVenta.routes.js';
 import precioVentaRoutes from './modules/ventas/precioVenta.routes.js';
+import ventaConfirmadaRoutes from './modules/ventas/ventaConfirmada.routes.js';
 
 
 // HU02: selección de modelos, colores y tallas dentro de un borrador de compra.
@@ -58,6 +59,8 @@ app.use('/api/margenes', margenRoutes);
 
 app.use('/api/compras', costoAdquisicionRoutes);
 app.use('/api/ventas/precios', precioVentaRoutes);
+// HU14 y HU15: comprobante de pago y envío a despacho de las ventas confirmadas.
+app.use('/api/ventas/confirmadas', ventaConfirmadaRoutes);
 app.use('/api/ventas', clienteVentaRoutes);
 app.use('/api/almacen/pendientes-despacho', despachoRoutes);
 

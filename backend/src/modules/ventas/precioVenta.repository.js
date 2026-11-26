@@ -12,9 +12,9 @@ const desdeCatalogo = `
     SELECT SUM(d.cantidad) AS cantidad
     FROM detalle_orden_venta d
     JOIN orden_venta v ON v.id_orden_venta = d.id_orden_venta
-    WHERE d.id_sku = p.id_sku AND v.estado = 'Pendiente'
+    WHERE d.id_sku = p.id_sku AND v.estado IN ('Pendiente', 'En Almacén')
   ) reservado ON true`;
-// Las ventas Pendiente comprometen pares hasta la salida física; los borradores no reservan.
+// Las ventas Pendiente y En Almacén (HU15 RN-08) comprometen pares hasta la salida física; los borradores no reservan.
 const stockDisponible = 'GREATEST(COALESCE(s.cantidad_actual, 0) - COALESCE(reservado.cantidad, 0), 0)::integer';
 const columnasProducto = `p.id_sku, p.codigo_sku, m.id_modelo, m.nombre_modelo AS modelo,
   co.id_color, co.nombre_color AS color, t.id_talla, t.numero_talla::text AS talla,

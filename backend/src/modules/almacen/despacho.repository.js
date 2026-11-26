@@ -12,7 +12,7 @@ const origenDespacho = `
   FROM orden_despacho d
   JOIN orden_venta v ON v.id_orden_venta = d.id_orden_venta
   JOIN cliente c ON c.id_cliente = v.id_cliente
-  LEFT JOIN comprobante_pago cp ON cp.id_orden_venta = v.id_orden_venta`;
+  LEFT JOIN comprobante_pago cp ON cp.id_orden_venta = v.id_orden_venta AND cp.estado = 'Emitido'`;
 
 export async function listarPendientesDespacho() {
   const { rows } = await pool.query(`
