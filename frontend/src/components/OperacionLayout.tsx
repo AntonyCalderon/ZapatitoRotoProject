@@ -69,6 +69,9 @@ export default function OperacionLayout() {
           <NavLink to="/ventas/precios" onClick={navegar} className={({ isActive }) => `ops-nav-link ${isActive ? 'is-active' : ''}`}>
             <OpIcon name="documento" />Precios de venta
           </NavLink>
+          <NavLink to="/ventas/confirmadas" onClick={navegar} className={({ isActive }) => `ops-nav-link ${isActive ? 'is-active' : ''}`}>
+            <OpIcon name="documento" />Ventas confirmadas
+          </NavLink>
         </>}
         {user?.roles.includes('Almacen') && <>
           <NavLink
