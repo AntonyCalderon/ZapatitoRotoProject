@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-import AuthLayout from '../components/AuthLayout'
+import LoginLayout from '../components/LoginLayout'
 import FormField from '../components/FormField'
 import { iniciarSesion } from '../services/authApi'
 import { useAuthStore } from '../store/authStore'
@@ -55,7 +55,7 @@ export default function Login() {
   }
 
   return (
-    <AuthLayout
+    <LoginLayout
       title="Bienvenido de nuevo"
       subtitle="Ingresa con tu correo y contraseña"
     >
@@ -99,7 +99,7 @@ export default function Login() {
           {mutation.isPending ? 'Ingresando...' : 'Iniciar sesión'}
         </button>
       </form>
-    </AuthLayout>
+    </LoginLayout>
   )
 }
 

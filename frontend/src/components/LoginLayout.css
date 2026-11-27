@@ -1,0 +1,103 @@
+.cat-login {
+  --amarillo: #ffc20e;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding: clamp(1rem, 2vw, 2.5rem);
+  background: #211912 url('../assets/login/cat-fondo.jpg') 70% center / cover;
+  color: white;
+  font-family: Roboto, Arial, sans-serif;
+}
+
+.cat-login::before, .cat-login::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+.cat-login::before {
+  top: 0;
+  width: 14%;
+  height: 12%;
+  background: var(--amarillo);
+  clip-path: polygon(0 100%, 33% 0, 51% 0, 18% 100%, 0 100%, 33% 100%, 66% 0, 85% 0, 52% 100%, 33% 100%);
+}
+.cat-login::after {
+  bottom: 0;
+  width: 53%;
+  height: 16%;
+  background: repeating-linear-gradient(112deg, #151515 0 4rem, var(--amarillo) 4rem 8rem);
+  clip-path: polygon(0 100%, 100% 0, 100% 100%);
+}
+
+.cat-login-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  width: min(100%, 33rem);
+  padding: clamp(1.3rem, 3vw, 2.5rem) clamp(1.1rem, 4vw, 4rem);
+  text-align: center;
+  border: 2px solid var(--amarillo);
+  border-radius: 1.85rem;
+  background: rgba(15, 15, 16, .88);
+  backdrop-filter: blur(5px);
+  box-shadow: 0 0 18px #ffc20e50;
+}
+.cat-login-card::before, .cat-login-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--amarillo);
+  pointer-events: none;
+}
+.cat-login-card::before { clip-path: polygon(0 20%, 0 12%, 30% 0, 38% 0); }
+.cat-login-card::after { clip-path: polygon(100% 82%, 100% 89%, 86% 100%, 79% 100%); }
+
+.cat-login-logo { display: block; height: clamp(5rem, 14vh, 7.5rem); width: auto; margin: 0 auto .8rem; }
+.cat-login-card h1 {
+  border-top: 2px solid var(--amarillo);
+  padding-top: .8rem;
+  font-size: clamp(1.6rem, 2.5vw, 2.3rem);
+  font-weight: 700;
+  line-height: 1.15;
+}
+.cat-login-card h1 span, .cat-login-footer span { color: var(--amarillo); }
+.cat-login-subtitle { margin: .45rem 0 1.5rem; }
+.cat-login form { text-align: left; }
+.cat-login form label { color: white; }
+.cat-login form input {
+  color: white;
+  background: #252525;
+  border-color: #898989;
+  font-size: 1rem;
+}
+.cat-login form input::placeholder { color: #bdbdbd; }
+.cat-login form input:focus { border-color: var(--amarillo); }
+.cat-login form input[aria-invalid="true"] { border-color: #ffa1a6; }
+.cat-login form input ~ button { color: #eee; }
+.cat-login form p[role="alert"]:not([class*="bg-"]) { color: #ffc1c4; }
+.cat-login form button[type="submit"] {
+  min-height: 3rem;
+  border-radius: 1rem;
+  color: #171717;
+  background: linear-gradient(#ffcc28, #ffb800);
+  box-shadow: 0 4px 15px #ffc20e38;
+}
+.cat-login button:focus-visible { outline: 3px solid white; outline-offset: 2px; }
+.cat-login-footer {
+  margin-top: 1.6rem;
+  border-top: 2px solid var(--amarillo);
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.cat-login-footer svg { display: block; margin: -.8rem auto .4rem; width: 2rem; height: 1.5rem; background: #171717; color: var(--amarillo); }
+@media (max-width: 54rem) {
+  .cat-login { justify-content: center; }
+  .cat-login::before, .cat-login::after { display: none; }
+}
